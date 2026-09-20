@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>கற்றல் கற்பித்தல் மேற்பார்வை</title>
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--ink:#1f2a1f;--mut:#667066;--line:#d9ddd3;--brand:#2f7d32;--brand2:#e8f3d6;--warn:#c2410c;--orange:#f8b48c;--blue:#e3ecf7}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans Tamil","Nirmala UI","Latha",system-ui,sans-serif;font-size:15px;line-height:1.5}
+header{background:var(--brand);color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+header h1{font-size:18px;margin:0}
+header .sub{font-size:13px;opacity:.9}
+.badge{font-size:12px;background:rgba(255,255,255,.2);border-radius:999px;padding:3px 10px}
+nav{display:flex;gap:4px;padding:10px 16px 0;flex-wrap:wrap;background:var(--brand2);border-bottom:1px solid var(--line)}
+nav button{border:0;background:transparent;padding:10px 14px;font:inherit;cursor:pointer;border-radius:8px 8px 0 0;color:var(--ink)}
+nav button.on{background:var(--bg);font-weight:700;color:var(--brand)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+h2{font-size:17px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+label{display:block;font-size:13px;color:var(--mut);margin-bottom:3px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+button.btn{background:var(--brand);color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;cursor:pointer}
+button.btn.sec{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+button.btn.danger{background:#fff;color:var(--warn);border:1px solid var(--warn)}
+button.btn.sm{padding:4px 10px;font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sticky{position:sticky;top:0;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 16px;margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.stats{display:flex;gap:18px;flex-wrap:wrap}
+.stat b{display:block;font-size:20px}.stat span{font-size:12px;color:var(--mut)}
+.crit{border:1px solid var(--line);border-radius:12px;margin-bottom:14px;overflow:hidden;background:#fff}
+.crit>h3{margin:0;padding:10px 14px;background:var(--brand2);font-size:15px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.ind{display:grid;grid-template-columns:48px 1fr auto;gap:8px 12px;padding:10px 14px;border-top:1px solid var(--line);align-items:center}
+.ind .code{font-weight:700;color:var(--brand)}
+.pills{display:flex;gap:4px}
+.pills button{width:36px;height:36px;border:1px solid var(--line);background:#fff;border-radius:8px;font:inherit;cursor:pointer}
+.pills button[aria-pressed=true]{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:700}
+@media(max-width:640px){.ind{grid-template-columns:40px 1fr}.pills{grid-column:1/-1}}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--orange);text-align:center}
+td.c{text-align:center}
+.bar{height:8px;background:#e5e7e0;border-radius:4px;min-width:70px}.bar i{display:block;height:100%;background:#63be7b;border-radius:4px}
+.scroll{overflow-x:auto}
+.mut{color:var(--mut);font-size:13px}
+.note{background:#fff7e6;border:1px solid #f3d9a4;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:8px;display:none;z-index:50}
+#login{max-width:380px;margin:60px auto}
+#printArea{display:none}
+/* print form as in the book */
+.pf{font-family:"Latha","Nirmala UI",serif;color:#000}
+.pf h2{text-align:center;font-size:17px}
+.pf table th{background:#d3eba0}
+.pf td.txt{text-align:justify}
+@media print{
+ body{background:#fff}header,nav,main>section,#toast{display:none!important}
+ main{max-width:none;padding:0}
+ #printArea{display:block!important}
+ thead{display:table-header-group}tr{break-inside:avoid}
+ @page{size:A4;margin:12mm}
+}
+</style>
+</head>
+<body>
+<header>
+ <div><h1>கற்றல் கற்பித்தல் மேற்பார்வை – மதிப்பீட்டுப் படிவம் 02</h1>
+ <div class="sub" id="schoolName"></div></div>
+ <div class="row"><span class="badge" id="modeBadge"></span><span class="badge" id="userBadge" style="display:none"></span><button class="btn sec sm" id="logoutBtn" style="display:none">வெளியேறு</button></div>
+</header>
+
+<div id="login" class="card" style="display:none">
+ <h2>உள்நுழைவு</h2>
+ <label>மின்னஞ்சல்</label><input id="lEmail" type="email" autocomplete="username">
+ <label style="margin-top:10px">கடவுச்சொல்</label><input id="lPass" type="password" autocomplete="current-password">
+ <p class="mut" id="lErr" style="color:var(--warn)"></p>
+ <button class="btn" id="lBtn">உள்நுழை</button>
+</div>
+
+<div id="app" style="display:none">
+<nav id="tabs">
+ <button data-t="entry" class="on">மேற்பார்வை உள்ளீடு</button>
+ <button data-t="records">பதிவுகள்</button>
+ <button data-t="teachers">ஆசிரியர்கள்</button>
+ <button data-t="results">முடிவுகள் / சுருக்கம்</button>
+ <button data-t="print">அச்சுப் படிவம்</button>
+</nav>
+<main>
+
+<section id="t-entry" class="on">
+ <div class="card">
+  <h2 id="entryTitle">புதிய மேற்பார்வை</h2>
+  <div class="grid">
+   <div><label>மேற்பார்வைத் திகதி *</label><input type="date" id="fDate"></div>
+   <div><label>ஆசிரியரின் பெயர் *</label><select id="fTeacher"></select></div>
+   <div><label>பாடம் *</label><input id="fSubject" placeholder="எ.கா. கணிதம்"></div>
+   <div><label>வகுப்பு</label><input id="fClass" placeholder="எ.கா. 8A"></div>
+   <div><label>பாடவேளை *</label><input id="fPeriod" placeholder="எ.கா. 3"></div>
+   <div><label>மதிப்பீட்டாளர்</label><input id="fEval"></div>
+  </div>
+  <p class="mut" style="margin:10px 0 0">புள்ளிகள்: 6 அதிவிசேடம் · 5 மிகவும் நன்று · 4 நன்று · 3 சாதாரணம் · 2 அபிவிருத்தி அடைய வேண்டும் · 1 விரைவாக அபிவிருத்தி அடைய வேண்டும். மதிப்பிடாத சுட்டியை வெறுமையாக விடவும் (அது கணிப்பில் சேராது).</p>
+ </div>
+ <div class="sticky"><div class="stats">
+  <div class="stat"><b id="sEv">0</b><span>மதிப்பிடப்பட்ட சுட்டிகள்</span></div>
+  <div class="stat"><b id="sMax">0</b><span>பெறவேண்டிய உச்சப் புள்ளிகள்</span></div>
+  <div class="stat"><b id="sOb">0</b><span>பெறப்பட்ட புள்ளிகள்</span></div>
+  <div class="stat"><b id="sPc">–</b><span>சதவீதம்</span></div>
+  <div style="margin-left:auto" class="row"><button class="btn" id="saveBtn">சேமி</button><button class="btn sec" id="newBtn">புதிது / துடை</button></div>
+ </div></div>
+ <div id="critBox"></div>
+ <div class="note">❖ தனிநபர் பொறுப்பும் ஆளுமையும் (2.4) விடயத்திற்குப் புள்ளியிடும் போது அதிபர் அல்லது முகாமைத்துவக் குழுவுடன் கலந்துரையாடி உரிய கோவைகளைப் பரிசீலித்தலும் பொருத்தமாகும்.</div>
+</section>
+
+<section id="t-records">
+ <div class="card">
+  <h2>மேற்பார்வைப் பதிவுகள்</h2>
+  <div class="grid" style="margin-bottom:12px">
+   <div><label>ஆசிரியர்</label><select id="rTeacher"></select></div>
+   <div><label>திகதி முதல்</label><input type="date" id="rFrom"></div>
+   <div><label>திகதி வரை</label><input type="date" id="rTo"></div>
+  </div>
+  <div class="row" style="margin-bottom:12px"><button class="btn sec sm" id="csvBtn">CSV (Excel) ஆகப் பதிவிறக்கு</button><button class="btn sec sm" id="jsonBtn">JSON காப்பு</button><label class="btn sec sm" style="margin:0;cursor:pointer">JSON இறக்கு<input type="file" id="jsonIn" accept=".json" style="display:none"></label></div>
+  <div class="scroll"><table id="recTable"></table></div>
+ </div>
+</section>
+
+<section id="t-teachers">
+ <div class="card">
+  <h2>ஆசிரியர் பட்டியல்</h2>
+  <div class="grid"><div><label>பெயர்</label><input id="tName"></div><div><label>பாடம் / பிரிவு</label><input id="tSub"></div></div>
+  <div class="row" style="margin:10px 0"><button class="btn" id="tAdd">சேர்</button><span class="mut">அல்லது பல பெயர்களை ஒட்டவும் (ஒரு வரிக்கு ஒரு பெயர்):</span></div>
+  <textarea id="tBulk" rows="3" placeholder="பெயர், பாடம் (பாடம் விருப்பத்திற்குரியது)"></textarea>
+  <div class="row" style="margin:8px 0"><button class="btn sec sm" id="tBulkBtn">பட்டியலாகச் சேர்</button></div>
+  <div class="scroll"><table id="teachTable"></table></div>
+ </div>
+</section>
+
+<section id="t-results">
+ <div class="card"><h2>அனைத்து ஆசிரியர்களினதும் மொத்த முடிவு</h2>
+  <div class="stats" id="overall"></div>
+  <p class="mut">மொத்தச் சதவீதம் = அனைத்து மேற்பார்வைகளிலும் பெறப்பட்ட புள்ளிகளின் கூட்டுத்தொகை ÷ பெறவேண்டிய உச்சப் புள்ளிகளின் கூட்டுத்தொகை × 100</p></div>
+ <div class="card"><h2>ஆசிரியர்வாரி முடிவுகள்</h2><div class="scroll"><table id="resTeach"></table></div></div>
+ <div class="card"><h2>நியதிவாரி முடிவுகள்</h2><div class="scroll"><table id="resCrit"></table></div></div>
+ <div class="card"><h2>சுட்டிவாரி முடிவுகள்</h2><div class="scroll"><table id="resInd"></table></div></div>
+</section>
+
+<section id="t-print">
+ <div class="card">
+  <h2>அச்சுப் படிவம் (நூலின் 17–18 ஆம் பக்க வடிவம்)</h2>
+  <p class="mut">ஒரு படிவத்தில் 4 ஆசிரியர்கள். பதிவுகளைத் தெரிவு செய்யவும்.</p>
+  <div class="grid" id="pSel"></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="pBtn">அச்சிடு / PDF</button></div>
+ </div>
+ <div class="card"><div id="pPreview" class="pf"></div></div>
+</section>
+</main>
+</div>
+<div id="printArea" class="pf"></div>
+<div id="toast"></div>
+
+<script type="module">
+/* ============================ CONFIG ============================
+ * Firebase ஐ இயக்க, உங்கள் "School SQI" செயலியில் பயன்படுத்தும் அதே firebaseConfig ஐ இங்கே ஒட்டவும்.
+ * null ஆக விட்டால் இப்பக்கம் இந்தக் கணினியின் உலாவியில் (Local mode) மட்டும் தரவைச் சேமிக்கும்.
+ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD0AZy8pSnWC7TUYsImmKULO6sx3LnjQlg",
+  authDomain: "school-sqi.firebaseapp.com",
+  projectId: "school-sqi",
+  storageBucket: "school-sqi.firebasestorage.app",
+  messagingSenderId: "252434026371",
+  appId: "1:252434026371:web:8ff8f4fa814b3a35d3f0b6"
+};   // School SQI செயலியின் அதே Firebase திட்டம்
+const SCHOOL_ID   = "";         // காலியாயின் தரவு lt_teachers, lt_supervisions என்ற மேல்நிலைத் தொகுப்புகளில்; பல-பாடசாலை அமைப்புக்கு ID இட்டால் schools/{SCHOOL_ID}/lt_* இல்
+const SCHOOL_NAME = "St. Mary's Tamil Maha Vidyalaya, Bambalapitiya";
+const REQUIRE_LOGIN = true;     // Firebase mode இல் உள்நுழைவு தேவை
+/* ================================================================ */
+const CRIT = [{"code": "2.1", "title": "முறையான பாடத்திட்டமிடலும் சிறப்பான பாடப் பிரவேசமும்", "items": ["பாடக்கொள்கை வருடாந்த/ தவணை/ வாரந்த/ தினசரி வேலைத்திட்டத்தை தயாரித்து அனுமதி பெற்று வைத்திருத்தல்.", "அத்திட்டத்தில் பாடத்துக்குரிய நோக்கம் மற்றும் தேர்ச்சிகளை விளக்கமாகக் காட்டியிருத்தல்.", "விடய உள்ளடக்கத்தின் பிழையற்ற தன்மையும் போதுமான அளவும்.", "மாணவரின் பல்வகைத்தன்மை மற்றும் கற்றல் பாங்கு தொடர்பில் அவதானம் செலுத்தி பல்வேறு கற்றல் முறைகளையும் உபாயங்களையும் உள்ளடக்கியிருத்தல்.", "பொருத்தமான கற்பித்தல் உபகரணங்கள், மாணவர்களுக்குப் பொருத்தமான சிறந்த கற்றல் சந்தர்ப்பங்கள் தொடர்பில் கவனம் செலுத்தியிருத்தல்.", "மகிழ்ச்சிகரமான கற்றல் சூழலை ஏற்படுத்தியிருப்பதோடு கற்றல் கற்பித்தல் வளங்களை வகுப்பறையில் காட்சிப்படுத்தியிருத்தல்.", "கற்றல் அனுபவங்களை நாளாந்த வாழ்க்கையுடன் தொடர்புபடுத்தும் வகையில் கவனம் செலுத்தியிருத்தல்.", "செயற்பாடுகளை உள்ளடக்கிய கற்றல் கற்பித்தல் செயல்முறையை தயார்படுத்தி வைத்திருத்தல்.", "மனதைக்கவரும் வகையில் பாடத்தினை ஆரம்பித்தல்."]}, {"code": "2.2", "title": "உயர் மட்டத்திலான பாடவிருத்தி", "items": ["திட்டத்திற்கமைய படிப்படியாக பாடம் விருத்தி செய்யப்படுகின்றது.", "பாடநூலுக்கு மேலதிகமாக பாடத்துக்கு பொருந்தும் வகையில் ஒப்படைகள்/ செயற்பாடுகள்/ வளங்கள் மற்றும் கற்றல் துணைச்சாதனங்களை வினைத்திறனுடன் உச்ச அளவில் பயன்படுத்தியிருத்தல்.", "மாணவர்களைத் தர்க்கரீதியில் தொழிற்பட ஊக்குவித்தல்/ ஈடுபடுத்துதல் மற்றும் வினாக்களைத் தொடுப்பதற்கு மாணவர்களைத் தூண்டுதல்.", "மாணவர்களின் வெவ்வேறு அறிவு மட்டங்களுக்குப் பொருந்தும் வகையில் உதாரணங்களையும் நோக்கத்துடன் கூடிய வினாக்களையும் ஒப்படைகளையும் முன்வைத்தல்.", "மாணவர் செயற்பாட்டு கற்றற் பாங்கைப் பின்பற்றி மாணவர்களின் வெளிப்பாடுகளைப் பெற்று பாடத்தை விருத்தி செய்தல்.", "மாணவர் - மாணவர், மாணவர் - ஆசிரியர் இடைத்தொடர்புகள் ஏற்படும் வகையில் குழுச்செயற்பாடுகள் மூலம் கற்றலை நெறிப்படுத்துதல்.", "வேறுபட்ட திறன்கள், ஆக்கத்திறன் என்பன விருத்தியாகும் வகையில் செயற்பாடுகளில் ஈடுபடுத்தல்.", "சுயகற்றலுக்கு ஈடுபடுத்தலும் தேவையான உதவிகளை வழங்கலும்.", "யதார்த்த வாழ்க்கை அனுபவங்களைப் பெற்றுக் கொடுக்கும் வகையில் பாடத்தினைப் பொருத்தப்பாடடையச் செய்தல்."]}, {"code": "2.3", "title": "மதிப்பிடல்", "items": ["வெளிப்பாடுகளை முன்வைத்தலுக்கு சந்தர்ப்பம் வழங்குதலும் ஊக்குவித்தலும் சரிசெய்தலும்.", "பாட முடிவில் கற்ற விடயங்களின் சாராம்சத்தை மீள வலியுறுத்தி உறுதிப்படுத்துதல்.", "பொருத்தமான மதிப்பீடு/ அளவீட்டு முறையைப் பாவித்தலும் அதனூடாக மாணவர்களின் பலத்தையும் (strength); அபிவிருத்திக்கான சந்தர்ப்பங்களையும் இனங்காணுதல்.", "முன்னூட்டல், பின்னூட்டலினை மேற்கொள்ளல்."]}, {"code": "2.4", "title": "தனிநபர் பொறுப்பும் ஆளுமையும்", "items": ["மாணவர்களுடனும் ஏனைய ஆளணியினருடனும் பொருத்தமான இடைத்தொடர்புகளைப் பேணுவதோடு பாடசாலையின் ஏனைய செயற்பாடுகளுக்கு சிறந்த பங்களிப்பினை வழங்குதல்.", "குறைவாக லீவு எடுத்தலும் அவ்வாறு லீவு பெறும் சந்தர்ப்பங்களில் ஒப்படைகளையும் செயற்பாடுகளையும் மாணவர்களுக்கு வழங்கியிருத்தலும்.", "உரிய நேரத்துக்குப் பாடசாலைக்கு சமூகமளித்தல், உரிய நேரத்தில் வகுப்பறைக்கு சமூகமளித்தல் மற்றும் வகுப்புப் பாடப் பதிவேட்டில் உரியவாறு பதிவுகளைப் பேணுதல்.", "சிறந்த ஆளுமையும் தன்னம்பிக்கையும் கொண்டிருத்தல்.", "பாடசாலை மட்டக் கணிப்பீடு / அளவீடு (ஆரம்பநிலை) உரியவாறு முடிவுறுத்தல், பகுப்பாய்வு செய்தல், பரிகார வேலைத்திட்டத்தை மேற்கொள்ளுதல்.", "உரிய காலத்தில் பாடத்திட்டத்தின் இலக்குகளை அடைவதற்காகச் செயற்படுதல்.", "மாணவர் பயிற்சிகளின் பிழையற்ற தன்மையைப் பரிசீலித்தலும் தேவையான ஆலோசனைகளை உரியவாறு வழங்குதலும்.", "பயிற்சிக் கருத்தரங்குகளுக்கு சமூகமளித்தலும் தொழில்சார் அறிவினை இற்றைப்படுத்துவதற்கு நடவடிக்கை மேற்கொள்ளலும்."]}];
+const IND = CRIT.flatMap(g=>g.items.map((t,i)=>({code:`${g.code}.${i+1}`,text:t,g:g.code})));
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fmtDate=d=>d?d.split("-").reverse().join("/"):"";
+const pc=x=>x==null?"–":(x*100).toFixed(1)+"%";
+function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",2600)}
+
+/* ---------- storage layer ---------- */
+let store, mode="local";
+const mem={};
+const LS={get(k){try{return localStorage.getItem(k)}catch(e){return mem[k]??null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}};
+const localStore={
+ async list(col){return JSON.parse(LS.get(`lt_${SCHOOL_ID||'main'}_${col}`)||"[]")},
+ async save(col,o){const a=await this.list(col);const i=a.findIndex(x=>x.id===o.id);i>=0?a[i]=o:a.push(o);LS.set(`lt_${SCHOOL_ID||'main'}_${col}`,JSON.stringify(a))},
+ async remove(col,id){const a=(await this.list(col)).filter(x=>x.id!==id);LS.set(`lt_${SCHOOL_ID||'main'}_${col}`,JSON.stringify(a))}
+};
+async function initFirebase(){
+ const B="https://www.gstatic.com/firebasejs/10.12.2/";
+ const [{initializeApp,getApps,getApp},fs,au]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-firestore.js"),import(B+"firebase-auth.js")]);
+ const app=getApps().length?getApp():initializeApp(FIREBASE_CONFIG);
+ const db=fs.getFirestore(app), auth=au.getAuth(app);
+ const path=c=>SCHOOL_ID?`schools/${SCHOOL_ID}/lt_${c}`:`lt_${c}`;
+ store={
+  async list(c){const s=await fs.getDocs(fs.collection(db,path(c)));return s.docs.map(d=>({...d.data(),id:d.id}))},
+  async save(c,o){const {id,...rest}=o;await fs.setDoc(fs.doc(db,path(c),id),rest)},
+  async remove(c,id){await fs.deleteDoc(fs.doc(db,path(c),id))}
+ };
+ return {auth,au};
+}
+
+/* ---------- state ---------- */
+let teachers=[],records=[],scores={},editingId=null;
+async function reload(){teachers=(await store.list("teachers")).sort((a,b)=>a.name.localeCompare(b.name,"ta"));
+ records=(await store.list("supervisions")).sort((a,b)=>(b.date||"").localeCompare(a.date||""));renderAll()}
+function calc(sc){const v=Object.values(sc).filter(x=>x>=1&&x<=6);const ev=v.length,ob=v.reduce((a,b)=>a+b,0);return{ev,max:ev*6,ob,pct:ev?ob/(ev*6):null}}
+
+/* ---------- entry ---------- */
+function buildEntry(){
+ $("#critBox").innerHTML=CRIT.map(g=>`<div class="crit"><h3><span>${g.code} ${esc(g.title)}</span><span class="mut" id="cs-${g.code}"></span></h3>`+
+  g.items.map((t,i)=>{const c=`${g.code}.${i+1}`;return `<div class="ind"><div class="code">${c}</div><div>${esc(t)}</div><div class="pills" data-c="${c}">${[6,5,4,3,2,1].map(n=>`<button type="button" data-v="${n}" aria-pressed="false" title="${n}">${n}</button>`).join("")}</div></div>`}).join("")+`</div>`).join("");
+ $("#critBox").addEventListener("click",e=>{const b=e.target.closest("button[data-v]");if(!b)return;const c=b.parentElement.dataset.c,v=+b.dataset.v;
+  if(scores[c]===v)delete scores[c];else scores[c]=v;paintScores()});
+}
+function paintScores(){
+ $$(".pills").forEach(p=>{const c=p.dataset.c;[...p.children].forEach(b=>b.setAttribute("aria-pressed",scores[c]===+b.dataset.v))});
+ const t=calc(scores);$("#sEv").textContent=t.ev;$("#sMax").textContent=t.max;$("#sOb").textContent=t.ob;$("#sPc").textContent=pc(t.pct);
+ CRIT.forEach(g=>{const s={};g.items.forEach((_,i)=>{const c=`${g.code}.${i+1}`;if(scores[c])s[c]=scores[c]});const x=calc(s);document.getElementById(`cs-${g.code}`).textContent=x.ev?`${x.ob}/${x.max} (${pc(x.pct)})`:""});
+}
+function fillTeacherSelects(){
+ const opt=(first)=>`<option value="">${first}</option>`+teachers.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+ const cur=$("#fTeacher").value;$("#fTeacher").innerHTML=opt("— தெரிவு செய்க —");$("#fTeacher").value=cur;
+ const r=$("#rTeacher").value;$("#rTeacher").innerHTML=opt("அனைவரும்");$("#rTeacher").value=r;
+}
+$("#fTeacher").addEventListener("change",()=>{const t=teachers.find(x=>x.id===$("#fTeacher").value);if(t&&!$("#fSubject").value)$("#fSubject").value=t.subject||""});
+function resetForm(){editingId=null;scores={};["#fSubject","#fClass","#fPeriod"].forEach(s=>$(s).value="");$("#fTeacher").value="";
+ $("#fDate").value=new Date().toISOString().slice(0,10);$("#entryTitle").textContent="புதிய மேற்பார்வை";paintScores()}
+$("#newBtn").onclick=resetForm;
+$("#saveBtn").onclick=async()=>{
+ const tid=$("#fTeacher").value,date=$("#fDate").value,subject=$("#fSubject").value.trim(),period=$("#fPeriod").value.trim();
+ if(!date||!tid||!subject||!period)return toast("திகதி, ஆசிரியர், பாடம், பாடவேளை ஆகியவை அவசியம்");
+ const t=calc(scores);if(!t.ev)return toast("குறைந்தது ஒரு சுட்டிக்காவது புள்ளி இடவும்");
+ const teacher=teachers.find(x=>x.id===tid);
+ const rec={id:editingId||uid(),date,teacherId:tid,teacherName:teacher.name,subject,className:$("#fClass").value.trim(),period,evaluator:$("#fEval").value.trim(),scores:{...scores},evaluated:t.ev,max:t.max,obtained:t.ob,pct:t.pct,updatedAt:new Date().toISOString()};
+ try{await store.save("supervisions",rec);toast("சேமிக்கப்பட்டது ✓");resetForm();await reload()}catch(e){console.error(e);toast("சேமிக்க இயலவில்லை: "+e.message)}
+};
+function editRec(id){const r=records.find(x=>x.id===id);if(!r)return;editingId=id;scores={...r.scores};
+ $("#fDate").value=r.date;$("#fTeacher").value=r.teacherId;$("#fSubject").value=r.subject;$("#fClass").value=r.className||"";$("#fPeriod").value=r.period;$("#fEval").value=r.evaluator||"";
+ $("#entryTitle").textContent="மேற்பார்வையைத் திருத்தல்";paintScores();showTab("entry");window.scrollTo(0,0)}
+
+/* ---------- records ---------- */
+function filteredRecs(){const t=$("#rTeacher").value,f=$("#rFrom").value,to=$("#rTo").value;
+ return records.filter(r=>(!t||r.teacherId===t)&&(!f||r.date>=f)&&(!to||r.date<=to))}
+function renderRecords(){
+ const rs=filteredRecs();
+ $("#recTable").innerHTML=`<tr><th>#</th><th>திகதி</th><th>ஆசிரியர்</th><th>பாடம்</th><th>வகுப்பு</th><th>பாடவேளை</th><th>சுட்டிகள்</th><th>புள்ளிகள்</th><th>%</th><th></th></tr>`+
+ (rs.length?rs.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${fmtDate(r.date)}</td><td>${esc(r.teacherName)}</td><td>${esc(r.subject)}</td><td>${esc(r.className)}</td><td class="c">${esc(r.period)}</td><td class="c">${r.evaluated}</td><td class="c">${r.obtained}/${r.max}</td><td class="c">${pc(r.pct)}</td><td><div class="row"><button class="btn sec sm" data-e="${r.id}">திருத்து</button><button class="btn danger sm" data-d="${r.id}">நீக்கு</button></div></td></tr>`).join(""):`<tr><td colspan="10" class="mut">பதிவுகள் இல்லை</td></tr>`);
+}
+$("#recTable").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
+ if(b.dataset.e)editRec(b.dataset.e);
+ if(b.dataset.d&&confirm("இப்பதிவை நிரந்தரமாக நீக்கவா?")){await store.remove("supervisions",b.dataset.d);toast("நீக்கப்பட்டது");await reload()}});
+["#rTeacher","#rFrom","#rTo"].forEach(s=>$(s).addEventListener("change",renderRecords));
+function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click()}
+$("#csvBtn").onclick=()=>{const q=v=>`"${String(v??"").replace(/"/g,'""')}"`;
+ const head=["திகதி","ஆசிரியர்","பாடம்","வகுப்பு","பாடவேளை","மதிப்பீட்டாளர்",...IND.map(i=>i.code),"மதிப்பிடப்பட்ட சுட்டிகள்","உச்சப் புள்ளிகள்","பெறப்பட்ட புள்ளிகள்","சதவீதம்"];
+ const rows=filteredRecs().map(r=>[fmtDate(r.date),r.teacherName,r.subject,r.className,r.period,r.evaluator,...IND.map(i=>r.scores[i.code]??""),r.evaluated,r.max,r.obtained,r.pct==null?"":(r.pct*100).toFixed(1)]);
+ download("supervision.csv","﻿"+[head,...rows].map(r=>r.map(q).join(",")).join("\n"),"text/csv;charset=utf-8")};
+$("#jsonBtn").onclick=()=>download("supervision-backup.json",JSON.stringify({teachers,records},null,1),"application/json");
+$("#jsonIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());
+ for(const t of d.teachers||[])await store.save("teachers",t);for(const r of d.records||[])await store.save("supervisions",r);toast("இறக்குமதி முடிந்தது");await reload()}catch(err){toast("கோப்பு தவறானது")}e.target.value=""};
+
+/* ---------- teachers ---------- */
+function renderTeachers(){
+ $("#teachTable").innerHTML=`<tr><th>#</th><th>பெயர்</th><th>பாடம் / பிரிவு</th><th>மேற்பார்வைகள்</th><th></th></tr>`+
+ (teachers.length?teachers.map((t,i)=>`<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td>${esc(t.subject)}</td><td class="c">${records.filter(r=>r.teacherId===t.id).length}</td><td><button class="btn danger sm" data-td="${t.id}">நீக்கு</button></td></tr>`).join(""):`<tr><td colspan="5" class="mut">ஆசிரியர்கள் இல்லை</td></tr>`);
+}
+$("#teachTable").addEventListener("click",async e=>{const id=e.target.dataset.td;if(!id)return;
+ if(records.some(r=>r.teacherId===id))return toast("இவருக்கு மேற்பார்வைப் பதிவுகள் உள்ளன; நீக்க முடியாது");
+ if(confirm("நீக்கவா?")){await store.remove("teachers",id);await reload()}});
+$("#tAdd").onclick=async()=>{const name=$("#tName").value.trim();if(!name)return toast("பெயரை உள்ளிடவும்");
+ if(teachers.some(t=>t.name===name))return toast("இப்பெயர் ஏற்கனவே உள்ளது");
+ await store.save("teachers",{id:uid(),name,subject:$("#tSub").value.trim()});$("#tName").value=$("#tSub").value="";await reload()};
+$("#tBulkBtn").onclick=async()=>{let n=0;for(const line of $("#tBulk").value.split("\n")){const [name,subject=""]=line.split(",").map(s=>s.trim());
+ if(name&&!teachers.some(t=>t.name===name)){await store.save("teachers",{id:uid(),name,subject});teachers.push({name});n++}}
+ $("#tBulk").value="";toast(n+" ஆசிரியர்கள் சேர்க்கப்பட்டனர்");await reload()};
+
+/* ---------- results ---------- */
+function agg(rs){const ev=rs.reduce((a,r)=>a+r.evaluated,0),ob=rs.reduce((a,r)=>a+r.obtained,0);return{n:rs.length,ev,max:ev*6,ob,pct:ev?ob/(ev*6):null}}
+const bar=p=>p==null?"":`<div class="bar"><i style="width:${Math.round(p*100)}%"></i></div>`;
+function renderResults(){
+ const a=agg(records);
+ $("#overall").innerHTML=[["மேற்பார்வை செய்யப்பட்ட ஆசிரியர்கள்",new Set(records.map(r=>r.teacherId)).size],["மொத்த மேற்பார்வைகள்",a.n],["மதிப்பிடப்பட்ட சுட்டிகள்",a.ev],["பெறவேண்டிய உச்சப் புள்ளிகள்",a.max],["பெறப்பட்ட புள்ளிகள்",a.ob],["மொத்தச் சதவீதம்",pc(a.pct)]].map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
+ $("#resTeach").innerHTML=`<tr><th>#</th><th>ஆசிரியர்</th><th>மேற்பார்வைகள்</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th><th></th></tr>`+
+  teachers.map((t,i)=>{const x=agg(records.filter(r=>r.teacherId===t.id));return `<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td class="c">${x.n}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td><td>${bar(x.pct)}</td></tr>`}).join("");
+ const sums=code=>{let ev=0,ob=0;records.forEach(r=>IND.filter(i=>code==null||i.g===code).forEach(i=>{const v=r.scores[i.code];if(v){ev++;ob+=v}}));return{ev,ob,max:ev*6,pct:ev?ob/(ev*6):null}};
+ $("#resCrit").innerHTML=`<tr><th>குறியீடு</th><th>நியதி</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th><th></th></tr>`+
+  CRIT.map(g=>{const x=sums(g.code);return `<tr><td class="c">${g.code}</td><td>${esc(g.title)}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td><td>${bar(x.pct)}</td></tr>`}).join("");
+ $("#resInd").innerHTML=`<tr><th>குறியீடு</th><th>சுட்டி</th><th>எண்ணிக்கை</th><th>சராசரி (6 இல்)</th><th>சதவீதம்</th><th></th></tr>`+
+  IND.map(i=>{const v=records.map(r=>r.scores[i.code]).filter(Boolean),s=v.reduce((a,b)=>a+b,0),p=v.length?s/(v.length*6):null;return `<tr><td class="c">${i.code}</td><td>${esc(i.text)}</td><td class="c">${v.length}</td><td class="c">${v.length?(s/v.length).toFixed(2):"–"}</td><td class="c">${pc(p)}</td><td>${bar(p)}</td></tr>`}).join("");
+}
+
+/* ---------- print ---------- */
+function recLabel(r){return `${fmtDate(r.date)} – ${r.teacherName} (${r.subject}, பா.வே ${r.period})`}
+function renderPrintSel(){
+ const keep=[...$$("#pSel select")].map(s=>s.value);
+ $("#pSel").innerHTML=[1,2,3,4].map(k=>`<div><label>ஆசிரியர் ${k}</label><select data-k="${k}"><option value="">— வெறுமை —</option>${records.map(r=>`<option value="${r.id}">${esc(recLabel(r))}</option>`).join("")}</select></div>`).join("");
+ $$("#pSel select").forEach((s,i)=>{s.value=keep[i]&&records.some(r=>r.id===keep[i])?keep[i]:(records[i]?.id||"");s.onchange=renderPrintPreview});
+ renderPrintPreview();
+}
+function printHTML(){
+ const rs=$$("#pSel select").map(s=>records.find(r=>r.id===s.value)||null);
+ let h=`<div>மதிப்பீட்டுப் படிவம் 02</div><h2>கற்றல் கற்பித்தல் மதிப்பீடு 02</h2><p>பாடசாலையின் பெயர் : <b>${esc(SCHOOL_NAME)}</b></p><p>இம்மதிப்பீட்டுப் படிவத்தை நான்கு ஆசிரியர்களின் மதிப்பீட்டிற்குப் பாவிக்கவும்</p>`;
+ rs.forEach((r,k)=>{h+=`<p style="margin:2px 0">${k+1}. ஆசிரியரின் பெயர் - ${esc(r?.teacherName)} &nbsp; பாடம் - ${esc(r?.subject)} &nbsp; வகுப்பு - ${esc(r?.className)} &nbsp; பாடவேளை - ${esc(r?.period)} &nbsp; திகதி - ${fmtDate(r?.date)}</p>`});
+ h+=`<p style="font-size:13px">புள்ளி வழங்குதல் – ஒவ்வொரு சுட்டிக்கும் உரிய நியதிகளை அவதானித்து கீழ்வரும் திட்டத்திற்கு அமையப் புள்ளிகளை வழங்கவும்.<br>அதிவிசேடம் - 6 | மிகவும் நன்று - 5 | நன்று - 4 | சாதாரணம் - 3 | அபிவிருத்தி அடைய வேண்டும் - 2 | விரைவாக அபிவிருத்தி அடைய வேண்டும் - 1</p>`;
+ h+=`<table><thead><tr><th rowspan="2">நியதிகள்</th><th rowspan="2" colspan="2">சுட்டிகள்</th><th colspan="4">புள்ளிகள்</th></tr><tr>${[1,2,3,4].map(k=>`<th>ஆ ${k}</th>`).join("")}</tr></thead><tbody>`;
+ CRIT.forEach(g=>g.items.forEach((t,i)=>{const c=`${g.code}.${i+1}`;h+=`<tr>${i==0?`<td rowspan="${g.items.length}" class="c"><b>${g.code}</b><br>${esc(g.title)}</td>`:""}<td class="c">${c}</td><td class="txt">${esc(t)}</td>${rs.map(r=>`<td class="c">${r?.scores[c]??""}</td>`).join("")}</tr>`}));
+ const cs=rs.map(r=>r?calc(r.scores):null);
+ h+=`<tr><td colspan="3" class="c"><b>மொத்த புள்ளிகள்</b></td>${cs.map(x=>`<td class="c"><b>${x?x.ob:""}</b></td>`).join("")}</tr></tbody></table>`;
+ h+=`<p style="font-size:13px">❖ தனிநபர் பொறுப்பும் ஆளுமையும் விடயத்திற்கு உரிய புள்ளியிடும் போது அதிபர் அல்லது முகாமைத்துவ குழுவுடன் கலந்துரையாடி உரிய கோவைகளை பரிசீலித்தலும் பொருத்தமாகும்.</p>`;
+ h+=`<table style="margin-top:10px"><tr><th colspan="1"></th>${[1,2,3,4].map(k=>`<th>ஆசிரியர் ${k}</th>`).join("")}</tr>`+
+  [["மதிப்பீடு செய்யப்பட்ட சுட்டிகளின் எண்ணிக்கை",x=>x.ev],["மதிப்பீடு செய்யப்பட்ட சுட்டிகளுக்கேற்ப பெறவேண்டிய உச்சப் புள்ளிகள்",x=>x.max],["பெறப்பட்ட புள்ளிகள்",x=>x.ob],["புள்ளிகளின் சதவீதம்",x=>pc(x.pct)]].map(([l,f])=>`<tr><td>${l}</td>${cs.map(x=>`<td class="c">${x?f(x):""}</td>`).join("")}</tr>`).join("")+`</table>`;
+ const ev=rs.find(Boolean)?.evaluator||"";
+ h+=`<p style="margin-top:16px">மதிப்பீட்டாளரின் பெயர் : ${esc(ev)||"........................................"} &nbsp;&nbsp;&nbsp; ஒப்பம் : ......................................</p><p>திகதி : ........................</p>`;
+ return h;
+}
+function renderPrintPreview(){$("#pPreview").innerHTML=printHTML()}
+$("#pBtn").onclick=()=>{$("#printArea").innerHTML=printHTML();window.print()};
+
+/* ---------- tabs / boot ---------- */
+function showTab(t){$$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));$$("main>section").forEach(s=>s.classList.toggle("on",s.id==="t-"+t))}
+$("#tabs").onclick=e=>{const b=e.target.closest("button");if(b)showTab(b.dataset.t)};
+function renderAll(){fillTeacherSelects();renderRecords();renderTeachers();renderResults();renderPrintSel()}
+async function start(){
+ $("#login").style.display="none";$("#app").style.display="block";
+ try{await reload()}catch(e){console.error(e);toast("தரவை ஏற்ற இயலவில்லை: "+e.message)}
+}
+async function boot(){
+ $("#schoolName").textContent=SCHOOL_NAME;buildEntry();resetForm();
+ if(!FIREBASE_CONFIG){store=localStore;$("#modeBadge").textContent="Local mode (இவ்வுலாவியில் மட்டும்)";return start()}
+ $("#modeBadge").textContent="Firebase";
+ try{
+  const {auth,au}=await initFirebase();mode="firebase";
+  $("#logoutBtn").onclick=()=>au.signOut(auth);
+  $("#lBtn").onclick=async()=>{$("#lErr").textContent="";try{await au.signInWithEmailAndPassword(auth,$("#lEmail").value.trim(),$("#lPass").value)}catch(e){$("#lErr").textContent="உள்நுழைவு தோல்வி: "+e.code}};
+  au.onAuthStateChanged(auth,u=>{
+   if(u||!REQUIRE_LOGIN){$("#userBadge").style.display=u?"":"none";$("#userBadge").textContent=u?.email||"";$("#logoutBtn").style.display=u?"":"none";start()}
+   else{$("#app").style.display="none";$("#login").style.display="block";$("#userBadge").style.display=$("#logoutBtn").style.display="none"}
+  });
+ }catch(e){console.error(e);store=localStore;$("#modeBadge").textContent="Firebase தோல்வி – Local mode";start()}
+}
+boot();
+</script>
+</body>
+</html>
