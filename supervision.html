@@ -54,11 +54,14 @@ td.c{text-align:center}
 .pf h2{text-align:center;font-size:17px}
 .pf table th{background:#d3eba0}
 .pf td.txt{text-align:justify}
+.pf table.info td{padding:6px 8px}.pf table.info td.lab{background:#e8f3d6;font-weight:700;width:18%}
+.pf table.sum{width:60%;margin-left:auto}.pf table.sum td.c{width:22%}
+.pageform{margin-bottom:20px}
 @media print{
  body{background:#fff}header,nav,main>section,#toast{display:none!important}
  main{max-width:none;padding:0}
  #printArea{display:block!important}
- thead{display:table-header-group}tr{break-inside:avoid}
+ thead{display:table-header-group}tr{break-inside:avoid}.pageform{break-after:page;margin:0}.pageform:last-child{break-after:auto}
  @page{size:A4;margin:12mm}
 }
 </style>
@@ -147,10 +150,17 @@ td.c{text-align:center}
 
 <section id="t-print">
  <div class="card">
-  <h2>அச்சுப் படிவம் (நூலின் 17–18 ஆம் பக்க வடிவம்)</h2>
-  <p class="mut">ஒரு படிவத்தில் 4 ஆசிரியர்கள். பதிவுகளைத் தெரிவு செய்யவும்.</p>
-  <div class="grid" id="pSel"></div>
-  <div class="row" style="margin-top:12px"><button class="btn" id="pBtn">அச்சிடு / PDF</button></div>
+  <h2>அச்சுப் படிவம் – ஒரு ஆசிரியருக்கு ஒரு படிவம்</h2>
+  <p class="mut">ஒவ்வொரு மேற்பார்வைக்கும் தனிப் படிவம் (நூலின் 17–18 ஆம் பக்க வடிவம்) உருவாகும்.</p>
+  <div class="grid">
+   <div><label>ஆசிரியர்</label><select id="pTeacher"></select></div>
+   <div><label>மேற்பார்வைப் பதிவு</label><select id="pRec"></select></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+   <button class="btn" id="pBtn">இப்பதிவை அச்சிடு / PDF</button>
+   <button class="btn sec" id="pAllBtn">இந்த ஆசிரியரின் அனைத்துப் பதிவுகளும் (ஒவ்வொன்றும் தனிப் பக்கம்)</button>
+   <button class="btn sec" id="pBlankBtn">வெற்றுப் படிவம் அச்சிடு</button>
+  </div>
  </div>
  <div class="card"><div id="pPreview" class="pf"></div></div>
 </section>
@@ -243,6 +253,7 @@ $("#saveBtn").onclick=async()=>{
  if(!date||!tid||!subject||!period)return toast("திகதி, ஆசிரியர், பாடம், பாடவேளை ஆகியவை அவசியம்");
  const t=calc(scores);if(!t.ev)return toast("குறைந்தது ஒரு சுட்டிக்காவது புள்ளி இடவும்");
  const teacher=teachers.find(x=>x.id===tid);
+ if(!editingId&&records.some(r=>r.teacherId===tid&&r.date===date&&r.period===period)&&!confirm("இதே ஆசிரியர், திகதி, பாடவேளைக்கு ஏற்கனவே ஒரு பதிவு உள்ளது. மீண்டும் சேமிக்கவா?"))return;
  const rec={id:editingId||uid(),date,teacherId:tid,teacherName:teacher.name,subject,className:$("#fClass").value.trim(),period,evaluator:$("#fEval").value.trim(),scores:{...scores},evaluated:t.ev,max:t.max,obtained:t.ob,pct:t.pct,updatedAt:new Date().toISOString()};
  try{await store.save("supervisions",rec);toast("சேமிக்கப்பட்டது ✓");resetForm();await reload()}catch(e){fail(e)}
 };
@@ -256,10 +267,11 @@ function filteredRecs(){const t=$("#rTeacher").value,f=$("#rFrom").value,to=$("#
 function renderRecords(){
  const rs=filteredRecs();
  $("#recTable").innerHTML=`<tr><th>#</th><th>திகதி</th><th>ஆசிரியர்</th><th>பாடம்</th><th>வகுப்பு</th><th>பாடவேளை</th><th>சுட்டிகள்</th><th>புள்ளிகள்</th><th>%</th><th></th></tr>`+
- (rs.length?rs.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${fmtDate(r.date)}</td><td>${esc(r.teacherName)}</td><td>${esc(r.subject)}</td><td>${esc(r.className)}</td><td class="c">${esc(r.period)}</td><td class="c">${r.evaluated}</td><td class="c">${r.obtained}/${r.max}</td><td class="c">${pc(r.pct)}</td><td><div class="row"><button class="btn sec sm" data-e="${r.id}">திருத்து</button><button class="btn danger sm" data-d="${r.id}">நீக்கு</button></div></td></tr>`).join(""):`<tr><td colspan="10" class="mut">பதிவுகள் இல்லை</td></tr>`);
+ (rs.length?rs.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${fmtDate(r.date)}</td><td>${esc(r.teacherName)}</td><td>${esc(r.subject)}</td><td>${esc(r.className)}</td><td class="c">${esc(r.period)}</td><td class="c">${r.evaluated}</td><td class="c">${r.obtained}/${r.max}</td><td class="c">${pc(r.pct)}</td><td><div class="row"><button class="btn sec sm" data-p="${r.id}">அச்சுப் படிவம்</button><button class="btn sec sm" data-e="${r.id}">திருத்து</button><button class="btn danger sm" data-d="${r.id}">நீக்கு</button></div></td></tr>`).join(""):`<tr><td colspan="10" class="mut">பதிவுகள் இல்லை</td></tr>`);
 }
 $("#recTable").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
  if(b.dataset.e)editRec(b.dataset.e);
+ if(b.dataset.p){renderPrintSel(b.dataset.p);showTab("print")}
  if(b.dataset.d&&confirm("இப்பதிவை நிரந்தரமாக நீக்கவா?")){await store.remove("supervisions",b.dataset.d);toast("நீக்கப்பட்டது");await reload()}});
 ["#rTeacher","#rFrom","#rTo"].forEach(s=>$(s).addEventListener("change",renderRecords));
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click()}
@@ -301,32 +313,50 @@ function renderResults(){
   IND.map(i=>{const v=records.map(r=>r.scores[i.code]).filter(Boolean),s=v.reduce((a,b)=>a+b,0),p=v.length?s/(v.length*6):null;return `<tr><td class="c">${i.code}</td><td>${esc(i.text)}</td><td class="c">${v.length}</td><td class="c">${v.length?(s/v.length).toFixed(2):"–"}</td><td class="c">${pc(p)}</td><td>${bar(p)}</td></tr>`}).join("");
 }
 
-/* ---------- print ---------- */
-function recLabel(r){return `${fmtDate(r.date)} – ${r.teacherName} (${r.subject}, பா.வே ${r.period})`}
-function renderPrintSel(){
- const keep=[...$$("#pSel select")].map(s=>s.value);
- $("#pSel").innerHTML=[1,2,3,4].map(k=>`<div><label>ஆசிரியர் ${k}</label><select data-k="${k}"><option value="">— வெறுமை —</option>${records.map(r=>`<option value="${r.id}">${esc(recLabel(r))}</option>`).join("")}</select></div>`).join("");
- $$("#pSel select").forEach((s,i)=>{s.value=keep[i]&&records.some(r=>r.id===keep[i])?keep[i]:(records[i]?.id||"");s.onchange=renderPrintPreview});
+/* ---------- print (one form per supervision) ---------- */
+function recLabel(r){return `${fmtDate(r.date)} – ${r.subject}, பாடவேளை ${r.period}${r.className?" ("+r.className+")":""}`}
+function renderPrintSel(pick){
+ const keepT=$("#pTeacher").value, keepR=pick||$("#pRec").value;
+ $("#pTeacher").innerHTML=`<option value="">அனைத்து ஆசிரியர்கள்</option>`+teachers.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+ $("#pTeacher").value=pick?(records.find(r=>r.id===pick)?.teacherId||""):keepT;
+ fillPrintRecs(keepR);
+}
+function fillPrintRecs(keep){
+ const t=$("#pTeacher").value;const rs=records.filter(r=>!t||r.teacherId===t);
+ $("#pRec").innerHTML=rs.length?rs.map(r=>`<option value="${r.id}">${esc((t?"":r.teacherName+" – ")+recLabel(r))}</option>`).join(""):`<option value="">— பதிவுகள் இல்லை —</option>`;
+ if(keep&&rs.some(r=>r.id===keep))$("#pRec").value=keep;
  renderPrintPreview();
 }
-function printHTML(){
- const rs=$$("#pSel select").map(s=>records.find(r=>r.id===s.value)||null);
- let h=`<div>மதிப்பீட்டுப் படிவம் 02</div><h2>கற்றல் கற்பித்தல் மதிப்பீடு 02</h2><p>பாடசாலையின் பெயர் : <b>${esc(SCHOOL_NAME)}</b></p><p>இம்மதிப்பீட்டுப் படிவத்தை நான்கு ஆசிரியர்களின் மதிப்பீட்டிற்குப் பாவிக்கவும்</p>`;
- rs.forEach((r,k)=>{h+=`<p style="margin:2px 0">${k+1}. ஆசிரியரின் பெயர் - ${esc(r?.teacherName)} &nbsp; பாடம் - ${esc(r?.subject)} &nbsp; வகுப்பு - ${esc(r?.className)} &nbsp; பாடவேளை - ${esc(r?.period)} &nbsp; திகதி - ${fmtDate(r?.date)}</p>`});
- h+=`<p style="font-size:13px">புள்ளி வழங்குதல் – ஒவ்வொரு சுட்டிக்கும் உரிய நியதிகளை அவதானித்து கீழ்வரும் திட்டத்திற்கு அமையப் புள்ளிகளை வழங்கவும்.<br>அதிவிசேடம் - 6 | மிகவும் நன்று - 5 | நன்று - 4 | சாதாரணம் - 3 | அபிவிருத்தி அடைய வேண்டும் - 2 | விரைவாக அபிவிருத்தி அடைய வேண்டும் - 1</p>`;
- h+=`<table><thead><tr><th rowspan="2">நியதிகள்</th><th rowspan="2" colspan="2">சுட்டிகள்</th><th colspan="4">புள்ளிகள்</th></tr><tr>${[1,2,3,4].map(k=>`<th>ஆ ${k}</th>`).join("")}</tr></thead><tbody>`;
- CRIT.forEach(g=>g.items.forEach((t,i)=>{const c=`${g.code}.${i+1}`;h+=`<tr>${i==0?`<td rowspan="${g.items.length}" class="c"><b>${g.code}</b><br>${esc(g.title)}</td>`:""}<td class="c">${c}</td><td class="txt">${esc(t)}</td>${rs.map(r=>`<td class="c">${r?.scores[c]??""}</td>`).join("")}</tr>`}));
- const cs=rs.map(r=>r?calc(r.scores):null);
- h+=`<tr><td colspan="3" class="c"><b>மொத்த புள்ளிகள்</b></td>${cs.map(x=>`<td class="c"><b>${x?x.ob:""}</b></td>`).join("")}</tr></tbody></table>`;
- h+=`<p style="font-size:13px">❖ தனிநபர் பொறுப்பும் ஆளுமையும் விடயத்திற்கு உரிய புள்ளியிடும் போது அதிபர் அல்லது முகாமைத்துவ குழுவுடன் கலந்துரையாடி உரிய கோவைகளை பரிசீலித்தலும் பொருத்தமாகும்.</p>`;
- h+=`<table style="margin-top:10px"><tr><th colspan="1"></th>${[1,2,3,4].map(k=>`<th>ஆசிரியர் ${k}</th>`).join("")}</tr>`+
-  [["மதிப்பீடு செய்யப்பட்ட சுட்டிகளின் எண்ணிக்கை",x=>x.ev],["மதிப்பீடு செய்யப்பட்ட சுட்டிகளுக்கேற்ப பெறவேண்டிய உச்சப் புள்ளிகள்",x=>x.max],["பெறப்பட்ட புள்ளிகள்",x=>x.ob],["புள்ளிகளின் சதவீதம்",x=>pc(x.pct)]].map(([l,f])=>`<tr><td>${l}</td>${cs.map(x=>`<td class="c">${x?f(x):""}</td>`).join("")}</tr>`).join("")+`</table>`;
- const ev=rs.find(Boolean)?.evaluator||"";
- h+=`<p style="margin-top:16px">மதிப்பீட்டாளரின் பெயர் : ${esc(ev)||"........................................"} &nbsp;&nbsp;&nbsp; ஒப்பம் : ......................................</p><p>திகதி : ........................</p>`;
+function formHTML(r){
+ const c=r?calc(r.scores):null, v=x=>esc(x??"");
+ let h=`<div class="pageform"><div style="font-size:13px">மதிப்பீட்டுப் படிவம் 02</div><h2>கற்றல் கற்பித்தல் மதிப்பீடு 02</h2>
+ <p style="margin:4px 0">பாடசாலையின் பெயர் : <b>${esc(SCHOOL_NAME)}</b></p>
+ <table class="info"><tr><td class="lab">ஆசிரியரின் பெயர்</td><td colspan="3"><b>${v(r?.teacherName)}</b></td></tr>
+ <tr><td class="lab">பாடம்</td><td>${v(r?.subject)}</td><td class="lab">வகுப்பு</td><td>${v(r?.className)}</td></tr>
+ <tr><td class="lab">பாடவேளை</td><td>${v(r?.period)}</td><td class="lab">திகதி</td><td>${r?fmtDate(r.date):""}</td></tr></table>
+ <p style="font-size:13px;margin:8px 0">புள்ளி வழங்குதல் – ஒவ்வொரு சுட்டிக்கும் உரிய நியதிகளை அவதானித்து கீழ்வரும் திட்டத்திற்கு அமையப் புள்ளிகளை வழங்கவும்.<br>அதிவிசேடம் - 6 | மிகவும் நன்று - 5 | நன்று - 4 | சாதாரணம் - 3 | அபிவிருத்தி அடைய வேண்டும் - 2 | விரைவாக அபிவிருத்தி அடைய வேண்டும் - 1</p>
+ <table class="main"><colgroup><col style="width:20%"><col style="width:7%"><col><col style="width:9%"></colgroup>
+ <thead><tr><th>நியதிகள்</th><th colspan="2">சுட்டிகள்</th><th>புள்ளி</th></tr></thead><tbody>`;
+ CRIT.forEach(g=>g.items.forEach((t,i)=>{const k=`${g.code}.${i+1}`;h+=`<tr>${i==0?`<td rowspan="${g.items.length}" class="c"><b>${g.code}</b><br>${esc(g.title)}</td>`:""}<td class="c">${k}</td><td class="txt">${esc(t)}</td><td class="c"><b>${r?.scores[k]??""}</b></td></tr>`}));
+ h+=`<tr><td colspan="3" class="c"><b>மொத்த புள்ளிகள்</b></td><td class="c"><b>${c?c.ob:""}</b></td></tr></tbody></table>
+ <p style="font-size:13px;margin:6px 0">❖ தனிநபர் பொறுப்பும் ஆளுமையும் விடயத்திற்கு உரிய புள்ளியிடும் போது அதிபர் அல்லது முகாமைத்துவ குழுவுடன் கலந்துரையாடி உரிய கோவைகளை பரிசீலித்தலும் பொருத்தமாகும்.</p>
+ <table class="sum"><tr><td>மதிப்பீடு செய்யப்பட்ட சுட்டிகளின் எண்ணிக்கை</td><td class="c">${c?c.ev:""}</td></tr>
+ <tr><td>மதிப்பீடு செய்யப்பட்ட சுட்டிகளுக்கேற்ப பெறவேண்டிய உச்சப் புள்ளிகள்</td><td class="c">${c?c.max:""}</td></tr>
+ <tr><td>பெறப்பட்ட புள்ளிகள்</td><td class="c">${c?c.ob:""}</td></tr>
+ <tr><td><b>புள்ளிகளின் சதவீதம்</b></td><td class="c"><b>${c?pc(c.pct):""}</b></td></tr></table>
+ <p style="margin-top:16px">மதிப்பீட்டாளரின் பெயர் : ${r&&r.evaluator?esc(r.evaluator):"........................................"} &nbsp;&nbsp;&nbsp; ஒப்பம் : ......................................</p>
+ <p>திகதி : ${r?fmtDate(r.date):"........................"}</p></div>`;
  return h;
 }
-function renderPrintPreview(){$("#pPreview").innerHTML=printHTML()}
-$("#pBtn").onclick=()=>{$("#printArea").innerHTML=printHTML();window.print()};
+function selRec(){return records.find(r=>r.id===$("#pRec").value)||null}
+function renderPrintPreview(){$("#pPreview").innerHTML=formHTML(selRec())}
+function doPrint(html){$("#printArea").innerHTML=html;window.print()}
+$("#pTeacher").addEventListener("change",()=>fillPrintRecs());
+$("#pRec").addEventListener("change",renderPrintPreview);
+$("#pBtn").onclick=()=>{const r=selRec();if(!r)return toast("அச்சிட ஒரு பதிவைத் தெரிவு செய்க");doPrint(formHTML(r))};
+$("#pAllBtn").onclick=()=>{const t=$("#pTeacher").value;const rs=records.filter(r=>!t||r.teacherId===t).slice().sort((a,b)=>a.date.localeCompare(b.date));
+ if(!rs.length)return toast("பதிவுகள் இல்லை");doPrint(rs.map(formHTML).join(""))};
+$("#pBlankBtn").onclick=()=>doPrint(formHTML(null));
 
 /* ---------- tabs / boot ---------- */
 function showTab(t){$$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));$$("main>section").forEach(s=>s.classList.toggle("on",s.id==="t-"+t))}
