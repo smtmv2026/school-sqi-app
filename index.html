@@ -1497,4 +1497,188 @@ function renderSchoolSetup(app){
     '</div>'+
     '<div class="error-msg" id="setupErr"></div>'+
     '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பங்கு</th><th></th></tr></thead>'+
-    '<tbody id="usersTbody"
+    '<tbody id="usersTbody"><tr><td colspan="3" style="color:var(--ink-soft)">ஏற்றப்படுகிறது…</td></tr></tbody></table>'+
+    '<footer class="app-footer">புதிதாக உருவாக்கிய மின்னஞ்சல் மற்றும் தற்காலிகக் கடவுச்சொல்லை அந்தந்தத் துறைப் பொறுப்பாளரிடம் நேரடியாக வழங்கவும்.</footer>';
+
+  document.getElementById('btnBackAdmin').onclick=function(){ state.view='admin'; renderApp(); };
+
+  function saveSchoolMeta(){
+    db.collection('config').doc('school').set(school).then(function(){
+      setSaveStatus('சேமிக்கப்பட்டது ✓');
+    }).catch(function(err){ setSaveStatus('சேமிப்பில் சிக்கல்: '+err.message); });
+    var t=document.querySelector('.brand-title'); if(t) t.textContent=school.name||'';
+  }
+  document.getElementById('schoolName').oninput=function(e){ school.name=e.target.value; saveSchoolMeta(); };
+  document.getElementById('schoolYear').oninput=function(e){ school.year=e.target.value; saveSchoolMeta(); };
+  document.getElementById('logoFile').onchange=function(e){
+    var f = e.target.files && e.target.files[0];
+    if(!f) return;
+    if(!/^image\//.test(f.type)){ alert('படக்கோப்பை மட்டும் தெரிவு செய்யவும்.'); return; }
+    fileToLogoDataUrl(f).then(function(dataUrl){
+      school.logoData = dataUrl;
+      saveSchoolMeta();
+      renderSchoolSetup(app);
+    }).catch(function(){ alert('சின்னத்தைச் சேர்க்க முடியவில்லை.'); });
+  };
+  var rmBtn = document.getElementById('btnRemoveLogo');
+  if(rmBtn){
+    rmBtn.onclick=function(){
+      school.logoData = null;
+      saveSchoolMeta();
+      renderSchoolSetup(app);
+    };
+  }
+
+  function loadUsers(){
+    db.collection('users').get().then(function(snap){
+      var rows = [];
+      snap.forEach(function(doc){ rows.push({uid:doc.id, email:doc.data().email, role:doc.data().role}); });
+      state.usersCache = rows;
+      renderUsersTable();
+    }).catch(function(err){
+      document.getElementById('usersTbody').innerHTML = '<tr><td colspan="3" style="color:var(--rust)">'+escapeHtml(err.message)+'</td></tr>';
+    });
+  }
+
+  function renderUsersTable(){
+    var tbody = document.getElementById('usersTbody');
+    if(!state.usersCache.length){
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--ink-soft)">இதுவரை பயனர்கள் யாரும் இல்லை.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = state.usersCache.map(function(u){
+      var opts = DEPARTMENTS.map(function(d){ return '<option value="'+d.id+'"'+(u.role===d.id?' selected':'')+'>'+escapeHtml(d.name)+'</option>'; }).join('') +
+        '<option value="admin"'+(u.role==='admin'?' selected':'')+'>அதிபர் / முகாமைத்துவம்</option>';
+      return '<tr data-uid="'+u.uid+'">'+
+        '<td>'+escapeHtml(u.email)+'</td>'+
+        '<td><select class="role-select" data-role-for="'+u.uid+'">'+opts+'</select></td>'+
+        '<td style="white-space:nowrap">'+
+          '<button class="btn-tiny" data-act="reset" data-email="'+escapeHtml(u.email)+'">கடவுச்சொல் மீட்பு அனுப்பு</button> '+
+          '<button class="btn-tiny" data-act="remove" data-uid="'+u.uid+'">அணுகலை நீக்கு</button>'+
+        '</td>'+
+      '</tr>';
+    }).join('');
+
+    tbody.querySelectorAll('[data-role-for]').forEach(function(sel){
+      sel.onchange=function(){
+        var targetUid = sel.getAttribute('data-role-for');
+        db.collection('users').doc(targetUid).update({role:sel.value}).then(function(){
+          var u = state.usersCache.find(function(x){ return x.uid===targetUid; });
+          if(u) u.role = sel.value;
+        }).catch(function(err){ alert('பங்கை மாற்ற முடியவில்லை: '+err.message); });
+      };
+    });
+    tbody.querySelectorAll('[data-act="reset"]').forEach(function(btn){
+      btn.onclick=function(){
+        auth.sendPasswordResetEmail(btn.getAttribute('data-email')).then(function(){
+          alert('கடவுச்சொல் மீட்பு இணைப்பு அனுப்பப்பட்டது.');
+        }).catch(function(err){ alert(err.message); });
+      };
+    });
+    tbody.querySelectorAll('[data-act="remove"]').forEach(function(btn){
+      btn.onclick=function(){
+        var targetUid = btn.getAttribute('data-uid');
+        if(!confirm('இந்தப் பயனரின் அணுகல் பங்கை நீக்கவா? (இது Firebase Authentication இலிருந்து கணக்கையே நீக்காது — தேவைப்பட்டால் அதை Firebase console இல் தனியாக நீக்க வேண்டும்.)')) return;
+        db.collection('users').doc(targetUid).delete().then(loadUsers).catch(function(err){ alert(err.message); });
+      };
+    });
+  }
+
+  document.getElementById('btnCreateUser').onclick=function(){
+    var email = document.getElementById('newEmail').value.trim();
+    var pass = document.getElementById('newPass').value;
+    var role = document.getElementById('newRole').value;
+    var errEl = document.getElementById('setupErr');
+    errEl.textContent='';
+    if(!email || !pass){ errEl.textContent='மின்னஞ்சலும் கடவுச்சொல்லும் இட்டு நிரப்பவும்.'; return; }
+    if(pass.length<6){ errEl.textContent='கடவுச்சொல் 6 எழுத்துகளுக்கு மேல் இருக்க வேண்டும்.'; return; }
+    var sec = getSecondaryApp();
+    var secAuth = sec.auth();
+    secAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
+      var newUid = cred.user.uid;
+      return db.collection('users').doc(newUid).set({email:email, role:role}).then(function(){
+        return secAuth.signOut();
+      });
+    }).then(function(){
+      document.getElementById('newEmail').value='';
+      document.getElementById('newPass').value='';
+      loadUsers();
+    }).catch(function(err){ errEl.textContent = friendlyAuthError(err); });
+  };
+
+  loadUsers();
+}
+
+/* ---------------- boot ---------------- */
+
+function renderFatalError(message){
+  var app = document.getElementById('app');
+  app.innerHTML = '<div class="center-wrap"><div class="login-card" style="max-width:600px;text-align:left">'+
+    '<h1 style="text-align:center">ஏதோ தவறு நேர்ந்தது</h1>'+
+    '<p>இந்தப் பிழைச் செய்தியை Claude இடம் காட்டினால், உடனே சரிசெய்ய உதவும்:</p>'+
+    '<p style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px;font-family:monospace;font-size:.82rem;white-space:pre-wrap;word-break:break-word">'+escapeHtml(message)+'</p>'+
+    '</div></div>';
+}
+
+function boot(){
+  if(CONFIG_IS_PLACEHOLDER){ renderApp(); return; }
+  if(typeof firebase === 'undefined'){
+    renderFatalError('firebase எனும் பெயர் கிடைக்கவில்லை. இணைய இணைப்பு உள்ளதா எனச் சரிபார்த்து, index.html ஐ ஒரு பிரவுசரில் (இணையம் இணைக்கப்பட்ட நிலையில்) மீண்டும் திறக்கவும்.');
+    return;
+  }
+  try{
+    firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+  }catch(e){
+    renderFatalError('Firebase தொடங்க முடியவில்லை — firebaseConfig இல் தவறு இருக்கலாம்:\n\n'+(e && e.message ? e.message : e));
+    return;
+  }
+
+  auth.onAuthStateChanged(function(user){
+    state.user = user;
+    unsubscribeAllDepts();
+    state.deptErrors = {};
+    if(state.schoolUnsub){ state.schoolUnsub(); state.schoolUnsub=null; }
+    routeAfterAuth();
+  }, function(err){
+    renderFatalError('உள்நுழைவு நிலையைச் சரிபார்க்க முடியவில்லை:\n\n'+(err && err.message ? err.message : err));
+  });
+
+  renderApp();
+}
+
+try{
+  boot();
+}catch(e){
+  console.error(e);
+  renderFatalError((e && e.stack) ? e.stack : String(e));
+}
+
+window.addEventListener('error', function(ev){
+  if(state.view==='boot' || !document.getElementById('app').innerHTML.trim()){
+    renderFatalError((ev.error && ev.error.stack) ? ev.error.stack : ev.message);
+  }
+});
+
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  state.deferredInstallPrompt = e;
+  state.canInstall = true;
+  if(state.view==='login') renderApp();
+});
+window.addEventListener('appinstalled', function(){
+  state.canInstall = false;
+  state.deferredInstallPrompt = null;
+});
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){ /* fine if this fails, e.g. opened via file:// */ });
+  });
+}
+
+})();
+
+</script>
+</body>
+</html>
