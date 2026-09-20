@@ -64,6 +64,10 @@ td.c{text-align:center}
  thead{display:table-header-group}tr{break-inside:avoid}.pageform{break-after:page;margin:0}.pageform:last-child{break-after:auto}
  @page{size:A4;margin:12mm}
 }
+body.embed header,body.embed nav{}
+body.embed>header{display:none}
+body.embed{background:transparent}
+body.embed main{padding:0}
 </style>
 </head>
 <body>
@@ -366,6 +370,10 @@ async function start(){
  $("#login").style.display="none";$("#app").style.display="block";
  try{await reload()}catch(e){console.error(e);toast("தரவை ஏற்ற இயலவில்லை: "+e.message)}
 }
+const EMBED=new URLSearchParams(location.search).has("embed");
+if(EMBED){document.body.classList.add("embed");
+ const post=()=>{try{parent.postMessage({type:"sup-height",h:document.documentElement.scrollHeight},location.origin)}catch(e){}};
+ new ResizeObserver(post).observe(document.body);window.addEventListener("load",post);setInterval(post,1000)}
 async function boot(){
  $("#schoolName").textContent=SCHOOL_NAME;buildEntry();resetForm();
  if(!FIREBASE_CONFIG){store=localStore;$("#modeBadge").textContent="Local mode (இவ்வுலாவியில் மட்டும்)";return start()}
