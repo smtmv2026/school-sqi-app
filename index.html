@@ -1176,6 +1176,7 @@ function renderDeptView(app, deptId, opts){
         '<div class="stat-box"><span class="badge '+(grade?grade.cls:'')+'">'+(grade?grade.label:'தொடங்கவில்லை')+'</span></div>'+
       '</div>'+
     '</div>'+
+    (deptId==='d2' ? '<div style="margin:0 0 14px"><a class="btn-outline" href="supervision.html" style="text-decoration:none;display:inline-block">ஆசிரியர் மேற்பார்வை — மதிப்பீட்டுப் படிவம் 02 (ஒரு ஆசிரியருக்கு ஒரு படிவம்) →</a></div>' : '')+
     '<div class="criteria-list" id="criteriaList">'+dData.criteria.map(function(c,i){ return criterionHtml(c,i,!!opts.admin); }).join('')+'</div>'+
     '<div class="reflect-box">'+
       '<label>இந்தத் துறை தொடர்பான கலந்துரையாடல் குறிப்புகள்</label>'+
@@ -1332,6 +1333,7 @@ function renderAdminOverview(app){
     '<div class="admin-tools">'+
       '<button type="button" class="btn-outline" id="btnPrint">அச்சிடு / சுருக்க அறிக்கை</button>'+
       '<button type="button" class="btn-outline" id="btnFullReport">அனைத்துத் துறைகளின் சான்று அறிக்கை (PDF)</button>'+
+      '<a class="btn-outline" href="supervision.html" style="text-decoration:none;display:inline-block">ஆசிரியர் மேற்பார்வை (படிவம் 02)</a>'+
       '<button type="button" class="btn-outline" id="btnSetup">பாடசாலை அமைப்பு / பயனர் நிர்வாகம்</button>'+
     '</div>'+
     '<footer class="app-footer">பாடசாலைக் கல்விப் பண்புத்தரத்தை உறுதி செய்வதற்கான மதிப்பீட்டு வடிவமைப்பை அடிப்படையாகக் கொண்டது.</footer>';
