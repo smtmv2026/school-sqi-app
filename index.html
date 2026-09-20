@@ -196,6 +196,13 @@
   .setup-table{ width:100%; border-collapse:collapse; margin-top:10px; }
   .setup-table th, .setup-table td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); font-size:.88rem; }
   .setup-table th{ color:var(--ink-soft); font-weight:600; }
+
+  .calc-table-wrap{ margin:6px 0 10px; overflow-x:auto; }
+  .calc-table{ border-collapse:collapse; font-size:.85rem; white-space:nowrap; }
+  .calc-table th, .calc-table td{ border:1px solid var(--line); padding:6px 8px; text-align:center; }
+  .calc-table th{ background:var(--paper); color:var(--ink-soft); font-weight:600; }
+  .calc-input{ width:60px; text-align:center; padding:5px; border:1px solid var(--line); border-radius:4px; }
+  .calc-avg{ font-weight:700; color:var(--maroon-deep); }
   .role-select{ padding:5px 8px; }
   .add-user-form{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; background:var(--paper-2); border:1px dashed var(--line); border-radius:6px; padding:14px; margin-bottom:16px; }
   .add-user-form .field{ margin-bottom:0; min-width:160px; }
@@ -666,6 +673,77 @@ function gradeInfo(pct){
   return {label:'மிகவேகமாக அபிவிருத்தி அடைய வேண்டும்', cls:'grade-1'};
 }
 
+function percentToScore(pct){
+  if(pct>=80) return 6;
+  if(pct>=70) return 5;
+  if(pct>=60) return 4;
+  if(pct>=50) return 3;
+  if(pct>=40) return 2;
+  return 1;
+}
+
+/* மாணவர் அடைவு (d1) — "தவணைப் பரீட்சைப் புள்ளிகளின் முன்னேற்றத்தை அளவிடல்"
+   சுட்டிகளுக்கான படிவம்: ஆசிரியர் ஒவ்வொரு தரத்திற்கும் % ஐ மட்டும் இடுகிறார்;
+   சராசரியும் புள்ளியும் (1-6) தானாகவே கணக்கிடப்படும் — PDF இன் அசல் அட்டவணை
+   (1.2.2.x) முறையை நேரடியாகப் பின்பற்றுகிறது. */
+var DEPT1_TAVANAI_CRIT_TITLE = 'தவணைப் பரீட்சைப் புள்ளிகளின் முன்னேற்றத்தை அளவிடல்';
+var DEPT1_SCHOOLASSESS_CRIT_TITLE = 'பாடசாலை மட்ட கணிப்பீட்டு முன்னேற்றத்தை அளவிடல்';
+var GRADE_COLS_6_11 = ['6','7','8','9','10','11'];
+var GRADE_COLS_12_13 = ['12','13'];
+var DEPT1_CALC_CONFIG = {
+  'தாய்மொழி — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'கணிதம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'விஞ்ஞானம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'ஆங்கிலம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'வரலாறு — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'சமயம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'இரண்டாம் மொழி (சிங்களம்/தமிழ்) — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'சுகாதாரமும் உடற்கல்வியும் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'செயன்முறை தொழில்நுட்பத் திறன்கள் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'அழகியல் பாடங்கள் (சித்திரம்/நடனம்/சங்கீதம்/நாடகம்/இலக்கிய நயம்) — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'முதலாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'மூன்றாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'தரம் 12-13 கலைத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
+  'தரம் 12-13 வர்த்தகத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
+  'தரம் 12-13 உயிரியல்/பௌதிக விஞ்ஞானம்/தொழில்நுட்பத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
+  'தரம் 6-9 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'},
+  'தரம் 10-11 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'},
+  'தரம் 12-13 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'}
+};
+function attachDept1Calc(dData){
+  if(!dData || !dData.criteria) return dData;
+  dData.criteria.forEach(function(c){
+    if(c.title!==DEPT1_TAVANAI_CRIT_TITLE && c.title!==DEPT1_SCHOOLASSESS_CRIT_TITLE) return;
+    c.indicators.forEach(function(ind){
+      var cfg = DEPT1_CALC_CONFIG[ind.title];
+      if(cfg && !ind.calc){
+        ind.calc = cfg;
+        if(!ind.calcValues) ind.calcValues = {};
+        ind.score = 0; // any earlier manually-picked score no longer applies once this becomes a calculated indicator
+      }
+    });
+  });
+  return dData;
+}
+function calcAverageAndScore(ind){
+  if(ind.calc.type==='completionRatio'){
+    var total = ind.calcValues ? parseFloat(ind.calcValues.total) : NaN;
+    var completed = ind.calcValues ? parseFloat(ind.calcValues.completed) : NaN;
+    if(!total || isNaN(total) || total<=0 || isNaN(completed)) return {avg:null, score:0};
+    var pct = (completed/total)*100;
+    return {avg:Math.round(pct*10)/10, score:percentToScore(pct)};
+  }
+  var cols = ind.calc.columns;
+  var vals = [];
+  cols.forEach(function(col){
+    var v = ind.calcValues ? ind.calcValues[col] : null;
+    if(v!==null && v!==undefined && v!==''){ var n=parseFloat(v); if(!isNaN(n)) vals.push(n); }
+  });
+  if(!vals.length) return {avg:null, score:0};
+  var avg = vals.reduce(function(a,b){return a+b;},0)/vals.length;
+  return {avg:Math.round(avg*10)/10, score:percentToScore(avg)};
+}
+
 function deptById(id){ for(var i=0;i<DEPARTMENTS.length;i++) if(DEPARTMENTS[i].id===id) return DEPARTMENTS[i]; return null; }
 
 function todayStr(){ return new Date().toISOString().slice(0,10); }
@@ -681,9 +759,10 @@ function migrateIndicator(ind){
   }
   delete ind.imageData; delete ind.imageName; delete ind.note;
 }
-function migrateDeptData(dData){
+function migrateDeptData(dData, deptId){
   if(!dData || !dData.criteria) return dData;
   dData.criteria.forEach(function(c){ c.indicators.forEach(migrateIndicator); });
+  if(deptId==='d1') attachDept1Calc(dData);
   return dData;
 }
 
@@ -700,7 +779,9 @@ function buildEmptyDeptData(deptId){
     });
     return {id:uid(), title:pair[0], indicators:indicators};
   });
-  return {note:'', criteria:criteria};
+  var dData = {note:'', criteria:criteria};
+  if(deptId==='d1') attachDept1Calc(dData);
+  return dData;
 }
 
 function computeDeptStats(deptId){
@@ -804,7 +885,7 @@ function subscribeDept(deptId, onChange){
     delete state.deptErrors[deptId];
     if(snap.metadata.hasPendingWrites) return; // our own optimistic write echoing back
     if(snap.exists){
-      state.deptData[deptId] = migrateDeptData(snap.data());
+      state.deptData[deptId] = migrateDeptData(snap.data(), deptId);
     } else {
       state.deptData[deptId] = buildEmptyDeptData(deptId);
       db.collection('departments').doc(deptId).set(state.deptData[deptId]).catch(function(){});
@@ -1003,15 +1084,51 @@ function entryRowHtml(entry){
   '</div>';
 }
 
+function calcTableHtml(ind){
+  if(ind.calc.type==='completionRatio'){
+    var res0 = calcAverageAndScore(ind);
+    var grade0 = res0.avg!=null ? gradeInfo(res0.avg) : null;
+    var tv = (ind.calcValues && ind.calcValues.total!=null) ? ind.calcValues.total : '';
+    var cv = (ind.calcValues && ind.calcValues.completed!=null) ? ind.calcValues.completed : '';
+    return '<div class="calc-table-wrap">'+
+      '<table class="calc-table"><thead><tr><th>தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கை</th><th>கணிப்பீடு பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கை</th><th>நூற்று வீதம் (%)</th><th>புள்ளி</th></tr></thead>'+
+      '<tbody><tr>'+
+        '<td><input type="number" min="0" step="1" class="calc-input" data-col="total" value="'+escapeHtml(tv)+'" placeholder="மொத்தம்"></td>'+
+        '<td><input type="number" min="0" step="1" class="calc-input" data-col="completed" value="'+escapeHtml(cv)+'" placeholder="பூரணமானவை"></td>'+
+        '<td class="calc-avg">'+(res0.avg!=null?res0.avg+'%':'—')+'</td>'+
+        '<td><span class="badge small '+(grade0?grade0.cls:'')+'">'+(res0.avg!=null?res0.score+' — '+grade0.label:'—')+'</span></td>'+
+      '</tr></tbody></table>'+
+      '<p class="hint">அந்தத் தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கையையும், அவற்றுள் பாடசாலைமட்டக் கணிப்பீட்டைப் பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கையையும் மட்டும் இடவும் — % ஆயும் புள்ளியாகவும் தானாகக் கணக்கிடப்படும்.</p>'+
+    '</div>';
+  }
+  var cols = ind.calc.columns;
+  var res = calcAverageAndScore(ind);
+  var cells = cols.map(function(col){
+    var v = (ind.calcValues && ind.calcValues[col]!=null) ? ind.calcValues[col] : '';
+    return '<td><input type="number" min="0" max="100" step="0.1" class="calc-input" data-col="'+escapeHtml(col)+'" value="'+escapeHtml(v)+'" placeholder="%"></td>';
+  }).join('');
+  var headerCells = cols.map(function(col){ return '<th>தரம் '+escapeHtml(col)+'</th>'; }).join('');
+  var grade = res.avg!=null ? gradeInfo(res.avg) : null;
+  return '<div class="calc-table-wrap">'+
+    '<table class="calc-table"><thead><tr>'+headerCells+'<th>சராசரி %</th><th>புள்ளி</th></tr></thead>'+
+    '<tbody><tr>'+cells+
+      '<td class="calc-avg">'+(res.avg!=null?res.avg+'%':'—')+'</td>'+
+      '<td><span class="badge small '+(grade?grade.cls:'')+'">'+(res.avg!=null?res.score+' — '+grade.label:'—')+'</span></td>'+
+    '</tr></tbody></table>'+
+    '<p class="hint">ஒவ்வொரு தரத்திலும் 40+ புள்ளி பெற்ற மாணவர்களின் நூற்றுவீதத்தை (%) மட்டும் இடவும் — சராசரியும் புள்ளியும் தானாகக் கணக்கிடப்படும்.</p>'+
+  '</div>';
+}
+
 function indicatorRowHtml(ind, idx){
   var entries = ind.entries || [];
   return '<div class="ind-row" data-ind="'+ind.id+'">'+
     '<div class="ind-num">'+(idx+1)+'</div>'+
     '<div class="ind-main">'+
       '<div class="ind-title">'+escapeHtml(ind.title)+'</div>'+
-      '<div class="ind-controls">'+
-        '<select class="ind-score" data-role="score">'+scoreSelectHtml(ind.score)+'</select>'+
-      '</div>'+
+      (ind.calc ?
+        calcTableHtml(ind) :
+        '<div class="ind-controls"><select class="ind-score" data-role="score">'+scoreSelectHtml(ind.score)+'</select></div>'
+      )+
       '<div class="entries-list">'+entries.map(entryRowHtml).join('')+'</div>'+
       '<button type="button" class="btn-outline small" data-role="addentry">+ புதிய பதிவு சேர் (திகதியுடன்)</button>'+
     '</div>'+
@@ -1101,11 +1218,26 @@ function renderDeptView(app, deptId, opts){
       if(!ind) return;
       if(!ind.entries) ind.entries = [];
 
-      rowEl.querySelector('[data-role="score"]').onchange=function(e){
-        ind.score=parseInt(e.target.value,10)||0;
-        scheduleSaveDept(deptId);
-        renderDeptView(app, deptId, opts);
-      };
+      var scoreSel = rowEl.querySelector('[data-role="score"]');
+      if(scoreSel){
+        scoreSel.onchange=function(e){
+          ind.score=parseInt(e.target.value,10)||0;
+          scheduleSaveDept(deptId);
+          renderDeptView(app, deptId, opts);
+        };
+      }
+      rowEl.querySelectorAll('.calc-input').forEach(function(inp){
+        inp.onchange=function(e){
+          if(!ind.calcValues) ind.calcValues = {};
+          var col = inp.getAttribute('data-col');
+          var v = e.target.value;
+          if(v===''){ delete ind.calcValues[col]; } else { ind.calcValues[col] = v; }
+          var res = calcAverageAndScore(ind);
+          ind.score = res.score;
+          scheduleSaveDept(deptId);
+          renderDeptView(app, deptId, opts);
+        };
+      });
       rowEl.querySelector('[data-role="addentry"]').onclick=function(){
         ind.entries.push({id:uid(), date:todayStr(), note:'', imageData:null, imageName:null});
         scheduleSaveDept(deptId);
@@ -1217,6 +1349,7 @@ function renderAdminOverview(app){
 
 function reportIndicatorHtml(ind){
   var scoreTxt = (ind.score && ind.score>0) ? SCORE_LABELS[ind.score] : 'மதிப்பிடப்படவில்லை';
+  var calcHtml = ind.calc ? calcTableHtml(ind) : '';
   var entries = (ind.entries || []).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
   var entriesHtml = entries.length ? entries.map(function(e){
     var img = e.imageData
@@ -1228,10 +1361,11 @@ function reportIndicatorHtml(ind){
         '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
       '</div>'+
     '</div>';
-  }).join('') : '<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>';
+  }).join('') : (ind.calc ? '' : '<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>');
   return '<div class="report-ind">'+
     '<div class="report-ind-title">'+escapeHtml(ind.title)+'</div>'+
-    '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>'+
+    (ind.calc ? '' : '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>')+
+    calcHtml+
     entriesHtml+
   '</div>';
 }
@@ -1363,188 +1497,4 @@ function renderSchoolSetup(app){
     '</div>'+
     '<div class="error-msg" id="setupErr"></div>'+
     '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பங்கு</th><th></th></tr></thead>'+
-    '<tbody id="usersTbody"><tr><td colspan="3" style="color:var(--ink-soft)">ஏற்றப்படுகிறது…</td></tr></tbody></table>'+
-    '<footer class="app-footer">புதிதாக உருவாக்கிய மின்னஞ்சல் மற்றும் தற்காலிகக் கடவுச்சொல்லை அந்தந்தத் துறைப் பொறுப்பாளரிடம் நேரடியாக வழங்கவும்.</footer>';
-
-  document.getElementById('btnBackAdmin').onclick=function(){ state.view='admin'; renderApp(); };
-
-  function saveSchoolMeta(){
-    db.collection('config').doc('school').set(school).then(function(){
-      setSaveStatus('சேமிக்கப்பட்டது ✓');
-    }).catch(function(err){ setSaveStatus('சேமிப்பில் சிக்கல்: '+err.message); });
-    var t=document.querySelector('.brand-title'); if(t) t.textContent=school.name||'';
-  }
-  document.getElementById('schoolName').oninput=function(e){ school.name=e.target.value; saveSchoolMeta(); };
-  document.getElementById('schoolYear').oninput=function(e){ school.year=e.target.value; saveSchoolMeta(); };
-  document.getElementById('logoFile').onchange=function(e){
-    var f = e.target.files && e.target.files[0];
-    if(!f) return;
-    if(!/^image\//.test(f.type)){ alert('படக்கோப்பை மட்டும் தெரிவு செய்யவும்.'); return; }
-    fileToLogoDataUrl(f).then(function(dataUrl){
-      school.logoData = dataUrl;
-      saveSchoolMeta();
-      renderSchoolSetup(app);
-    }).catch(function(){ alert('சின்னத்தைச் சேர்க்க முடியவில்லை.'); });
-  };
-  var rmBtn = document.getElementById('btnRemoveLogo');
-  if(rmBtn){
-    rmBtn.onclick=function(){
-      school.logoData = null;
-      saveSchoolMeta();
-      renderSchoolSetup(app);
-    };
-  }
-
-  function loadUsers(){
-    db.collection('users').get().then(function(snap){
-      var rows = [];
-      snap.forEach(function(doc){ rows.push({uid:doc.id, email:doc.data().email, role:doc.data().role}); });
-      state.usersCache = rows;
-      renderUsersTable();
-    }).catch(function(err){
-      document.getElementById('usersTbody').innerHTML = '<tr><td colspan="3" style="color:var(--rust)">'+escapeHtml(err.message)+'</td></tr>';
-    });
-  }
-
-  function renderUsersTable(){
-    var tbody = document.getElementById('usersTbody');
-    if(!state.usersCache.length){
-      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--ink-soft)">இதுவரை பயனர்கள் யாரும் இல்லை.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = state.usersCache.map(function(u){
-      var opts = DEPARTMENTS.map(function(d){ return '<option value="'+d.id+'"'+(u.role===d.id?' selected':'')+'>'+escapeHtml(d.name)+'</option>'; }).join('') +
-        '<option value="admin"'+(u.role==='admin'?' selected':'')+'>அதிபர் / முகாமைத்துவம்</option>';
-      return '<tr data-uid="'+u.uid+'">'+
-        '<td>'+escapeHtml(u.email)+'</td>'+
-        '<td><select class="role-select" data-role-for="'+u.uid+'">'+opts+'</select></td>'+
-        '<td style="white-space:nowrap">'+
-          '<button class="btn-tiny" data-act="reset" data-email="'+escapeHtml(u.email)+'">கடவுச்சொல் மீட்பு அனுப்பு</button> '+
-          '<button class="btn-tiny" data-act="remove" data-uid="'+u.uid+'">அணுகலை நீக்கு</button>'+
-        '</td>'+
-      '</tr>';
-    }).join('');
-
-    tbody.querySelectorAll('[data-role-for]').forEach(function(sel){
-      sel.onchange=function(){
-        var targetUid = sel.getAttribute('data-role-for');
-        db.collection('users').doc(targetUid).update({role:sel.value}).then(function(){
-          var u = state.usersCache.find(function(x){ return x.uid===targetUid; });
-          if(u) u.role = sel.value;
-        }).catch(function(err){ alert('பங்கை மாற்ற முடியவில்லை: '+err.message); });
-      };
-    });
-    tbody.querySelectorAll('[data-act="reset"]').forEach(function(btn){
-      btn.onclick=function(){
-        auth.sendPasswordResetEmail(btn.getAttribute('data-email')).then(function(){
-          alert('கடவுச்சொல் மீட்பு இணைப்பு அனுப்பப்பட்டது.');
-        }).catch(function(err){ alert(err.message); });
-      };
-    });
-    tbody.querySelectorAll('[data-act="remove"]').forEach(function(btn){
-      btn.onclick=function(){
-        var targetUid = btn.getAttribute('data-uid');
-        if(!confirm('இந்தப் பயனரின் அணுகல் பங்கை நீக்கவா? (இது Firebase Authentication இலிருந்து கணக்கையே நீக்காது — தேவைப்பட்டால் அதை Firebase console இல் தனியாக நீக்க வேண்டும்.)')) return;
-        db.collection('users').doc(targetUid).delete().then(loadUsers).catch(function(err){ alert(err.message); });
-      };
-    });
-  }
-
-  document.getElementById('btnCreateUser').onclick=function(){
-    var email = document.getElementById('newEmail').value.trim();
-    var pass = document.getElementById('newPass').value;
-    var role = document.getElementById('newRole').value;
-    var errEl = document.getElementById('setupErr');
-    errEl.textContent='';
-    if(!email || !pass){ errEl.textContent='மின்னஞ்சலும் கடவுச்சொல்லும் இட்டு நிரப்பவும்.'; return; }
-    if(pass.length<6){ errEl.textContent='கடவுச்சொல் 6 எழுத்துகளுக்கு மேல் இருக்க வேண்டும்.'; return; }
-    var sec = getSecondaryApp();
-    var secAuth = sec.auth();
-    secAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
-      var newUid = cred.user.uid;
-      return db.collection('users').doc(newUid).set({email:email, role:role}).then(function(){
-        return secAuth.signOut();
-      });
-    }).then(function(){
-      document.getElementById('newEmail').value='';
-      document.getElementById('newPass').value='';
-      loadUsers();
-    }).catch(function(err){ errEl.textContent = friendlyAuthError(err); });
-  };
-
-  loadUsers();
-}
-
-/* ---------------- boot ---------------- */
-
-function renderFatalError(message){
-  var app = document.getElementById('app');
-  app.innerHTML = '<div class="center-wrap"><div class="login-card" style="max-width:600px;text-align:left">'+
-    '<h1 style="text-align:center">ஏதோ தவறு நேர்ந்தது</h1>'+
-    '<p>இந்தப் பிழைச் செய்தியை Claude இடம் காட்டினால், உடனே சரிசெய்ய உதவும்:</p>'+
-    '<p style="background:#fff;border:1px solid var(--line);border-radius:6px;padding:10px;font-family:monospace;font-size:.82rem;white-space:pre-wrap;word-break:break-word">'+escapeHtml(message)+'</p>'+
-    '</div></div>';
-}
-
-function boot(){
-  if(CONFIG_IS_PLACEHOLDER){ renderApp(); return; }
-  if(typeof firebase === 'undefined'){
-    renderFatalError('firebase எனும் பெயர் கிடைக்கவில்லை. இணைய இணைப்பு உள்ளதா எனச் சரிபார்த்து, index.html ஐ ஒரு பிரவுசரில் (இணையம் இணைக்கப்பட்ட நிலையில்) மீண்டும் திறக்கவும்.');
-    return;
-  }
-  try{
-    firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    db = firebase.firestore();
-  }catch(e){
-    renderFatalError('Firebase தொடங்க முடியவில்லை — firebaseConfig இல் தவறு இருக்கலாம்:\n\n'+(e && e.message ? e.message : e));
-    return;
-  }
-
-  auth.onAuthStateChanged(function(user){
-    state.user = user;
-    unsubscribeAllDepts();
-    state.deptErrors = {};
-    if(state.schoolUnsub){ state.schoolUnsub(); state.schoolUnsub=null; }
-    routeAfterAuth();
-  }, function(err){
-    renderFatalError('உள்நுழைவு நிலையைச் சரிபார்க்க முடியவில்லை:\n\n'+(err && err.message ? err.message : err));
-  });
-
-  renderApp();
-}
-
-try{
-  boot();
-}catch(e){
-  console.error(e);
-  renderFatalError((e && e.stack) ? e.stack : String(e));
-}
-
-window.addEventListener('error', function(ev){
-  if(state.view==='boot' || !document.getElementById('app').innerHTML.trim()){
-    renderFatalError((ev.error && ev.error.stack) ? ev.error.stack : ev.message);
-  }
-});
-
-window.addEventListener('beforeinstallprompt', function(e){
-  e.preventDefault();
-  state.deferredInstallPrompt = e;
-  state.canInstall = true;
-  if(state.view==='login') renderApp();
-});
-window.addEventListener('appinstalled', function(){
-  state.canInstall = false;
-  state.deferredInstallPrompt = null;
-});
-if('serviceWorker' in navigator){
-  window.addEventListener('load', function(){
-    navigator.serviceWorker.register('sw.js').catch(function(){ /* fine if this fails, e.g. opened via file:// */ });
-  });
-}
-
-})();
-
-</script>
-</body>
-</html>
+    '<tbody id="usersTbody"
