@@ -288,13 +288,32 @@ $("#jsonIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const
  for(const t of d.teachers||[])await store.save("teachers",t);for(const r of d.records||[])await store.save("supervisions",r);toast("இறக்குமதி முடிந்தது");await reload()}catch(err){toast("கோப்பு தவறானது")}e.target.value=""};
 
 /* ---------- teachers ---------- */
+let editingTeacher=null;
 function renderTeachers(){
  $("#teachTable").innerHTML=`<tr><th>#</th><th>பெயர்</th><th>பாடம் / பிரிவு</th><th>மேற்பார்வைகள்</th><th></th></tr>`+
- (teachers.length?teachers.map((t,i)=>`<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td>${esc(t.subject)}</td><td class="c">${records.filter(r=>r.teacherId===t.id).length}</td><td><button class="btn danger sm" data-td="${t.id}">நீக்கு</button></td></tr>`).join(""):`<tr><td colspan="5" class="mut">ஆசிரியர்கள் இல்லை</td></tr>`);
+ (teachers.length?teachers.map((t,i)=>{const n=records.filter(r=>r.teacherId===t.id).length;
+  if(editingTeacher===t.id)return `<tr><td class="c">${i+1}</td><td><input id="teName" value="${esc(t.name)}"></td><td><input id="teSub" value="${esc(t.subject)}"></td><td class="c">${n}</td><td><div class="row"><button class="btn sm" data-ts="${t.id}">சேமி</button><button class="btn sec sm" data-tc="1">ரத்து</button></div></td></tr>`;
+  return `<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td>${esc(t.subject)}</td><td class="c">${n}</td><td><div class="row"><button class="btn sec sm" data-te="${t.id}">திருத்து</button><button class="btn danger sm" data-td="${t.id}">நீக்கு</button></div></td></tr>`}).join(""):`<tr><td colspan="5" class="mut">ஆசிரியர்கள் இல்லை</td></tr>`);
 }
-$("#teachTable").addEventListener("click",async e=>{const id=e.target.dataset.td;if(!id)return;
- if(records.some(r=>r.teacherId===id))return toast("இவருக்கு மேற்பார்வைப் பதிவுகள் உள்ளன; நீக்க முடியாது");
- if(confirm("நீக்கவா?")){await store.remove("teachers",id);await reload()}});
+$("#teachTable").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
+ try{
+  if(b.dataset.te){editingTeacher=b.dataset.te;renderTeachers();return}
+  if(b.dataset.tc){editingTeacher=null;renderTeachers();return}
+  if(b.dataset.ts){
+   const t=teachers.find(x=>x.id===b.dataset.ts);const name=$("#teName").value.trim(),subject=$("#teSub").value.trim();
+   if(!name)return toast("பெயரை உள்ளிடவும்");
+   if(teachers.some(x=>x.id!==t.id&&x.name===name))return toast("இப்பெயர் வேறொரு ஆசிரியருக்கு ஏற்கனவே உள்ளது");
+   await store.save("teachers",{...t,name,subject});
+   if(name!==t.name){for(const r of records.filter(r=>r.teacherId===t.id))await store.save("supervisions",{...r,teacherName:name})}
+   editingTeacher=null;toast("மாற்றம் சேமிக்கப்பட்டது ✓");await reload();return}
+  if(b.dataset.td){
+   const t=teachers.find(x=>x.id===b.dataset.td);const rs=records.filter(r=>r.teacherId===t.id);
+   const msg=rs.length?`"${t.name}" என்ற ஆசிரியரையும் அவரது ${rs.length} மேற்பார்வைப் பதிவுகளையும் நிரந்தரமாக நீக்கவா?`:`"${t.name}" ஐ நீக்கவா?`;
+   if(!confirm(msg))return;
+   for(const r of rs)await store.remove("supervisions",r.id);
+   await store.remove("teachers",t.id);toast("நீக்கப்பட்டது");await reload()}
+ }catch(err){fail(err)}
+});
 $("#tAdd").onclick=async()=>{const name=$("#tName").value.trim();if(!name)return toast("பெயரை உள்ளிடவும்");
  if(teachers.some(t=>t.name===name))return toast("இப்பெயர் ஏற்கனவே உள்ளது");
  try{await store.save("teachers",{id:uid(),name,subject:$("#tSub").value.trim()});$("#tName").value=$("#tSub").value="";toast("சேர்க்கப்பட்டது ✓");await reload()}catch(e){fail(e)}};
@@ -363,7 +382,8 @@ $("#pAllBtn").onclick=()=>{const t=$("#pTeacher").value;const rs=records.filter(
 $("#pBlankBtn").onclick=()=>doPrint(formHTML(null));
 
 /* ---------- tabs / boot ---------- */
-function showTab(t){$$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));$$("main>section").forEach(s=>s.classList.toggle("on",s.id==="t-"+t))}
+function toParentTop(){if(document.body.classList.contains("embed")){try{parent.postMessage({type:"sup-scroll"},location.origin)}catch(e){}}}
+function showTab(t){toParentTop();$$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));$$("main>section").forEach(s=>s.classList.toggle("on",s.id==="t-"+t))}
 $("#tabs").onclick=e=>{const b=e.target.closest("button");if(b)showTab(b.dataset.t)};
 function renderAll(){fillTeacherSelects();renderRecords();renderTeachers();renderResults();renderPrintSel()}
 async function start(){
