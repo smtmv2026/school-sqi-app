@@ -1147,8 +1147,10 @@ function criterionHtml(c, cIdx, isAdmin){
 }
 
 if(!window._supMsgBound){ window._supMsgBound=true; window.addEventListener('message', function(e){
-  if(e.origin!==location.origin || !e.data || e.data.type!=='sup-height') return;
-  var fr=document.getElementById('supFrame'); if(fr && e.data.h>200) fr.style.height=(e.data.h+20)+'px';
+  if(e.origin!==location.origin || !e.data) return;
+  var fr=document.getElementById('supFrame'); if(!fr) return;
+  if(e.data.type==='sup-height' && e.data.h>200) fr.style.height=(e.data.h+20)+'px';
+  if(e.data.type==='sup-scroll'){ var top=fr.getBoundingClientRect().top; if(top<0 || top>window.innerHeight*0.6){ window.scrollTo({top: window.pageYOffset+top-70, behavior:'smooth'}); } }
 }); }
 function renderDeptView(app, deptId, opts){
   opts = opts || {};
