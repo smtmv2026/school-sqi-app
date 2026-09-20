@@ -172,7 +172,7 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "252434026371",
   appId: "1:252434026371:web:8ff8f4fa814b3a35d3f0b6"
 };   // School SQI செயலியின் அதே Firebase திட்டம்
-const SCHOOL_ID   = "";         // காலியாயின் தரவு lt_teachers, lt_supervisions என்ற மேல்நிலைத் தொகுப்புகளில்; பல-பாடசாலை அமைப்புக்கு ID இட்டால் schools/{SCHOOL_ID}/lt_* இல்
+const SCHOOL_ID   = "";         // காலியாயின் தரவு lt_teachers, lt_supervisions மேல்நிலைத் தொகுப்புகளில்
 const SCHOOL_NAME = "St. Mary's Tamil Maha Vidyalaya, Bambalapitiya";
 const REQUIRE_LOGIN = true;     // Firebase mode இல் உள்நுழைவு தேவை
 /* ================================================================ */
@@ -185,6 +185,9 @@ const fmtDate=d=>d?d.split("-").reverse().join("/"):"";
 const pc=x=>x==null?"–":(x*100).toFixed(1)+"%";
 function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",2600)}
 
+function fail(e){console.error(e);const m=String(e&&e.code||e&&e.message||e);
+ toast(/permission|insufficient/i.test(m)?"அனுமதி மறுக்கப்பட்டது – Firestore rules இல் lt_teachers, lt_supervisions க்கு அனுமதி சேர்க்கவும் ("+m+")":"பிழை: "+m)}
+window.addEventListener("unhandledrejection",ev=>{ev.preventDefault();fail(ev.reason)});
 /* ---------- storage layer ---------- */
 let store, mode="local";
 const mem={};
@@ -241,7 +244,7 @@ $("#saveBtn").onclick=async()=>{
  const t=calc(scores);if(!t.ev)return toast("குறைந்தது ஒரு சுட்டிக்காவது புள்ளி இடவும்");
  const teacher=teachers.find(x=>x.id===tid);
  const rec={id:editingId||uid(),date,teacherId:tid,teacherName:teacher.name,subject,className:$("#fClass").value.trim(),period,evaluator:$("#fEval").value.trim(),scores:{...scores},evaluated:t.ev,max:t.max,obtained:t.ob,pct:t.pct,updatedAt:new Date().toISOString()};
- try{await store.save("supervisions",rec);toast("சேமிக்கப்பட்டது ✓");resetForm();await reload()}catch(e){console.error(e);toast("சேமிக்க இயலவில்லை: "+e.message)}
+ try{await store.save("supervisions",rec);toast("சேமிக்கப்பட்டது ✓");resetForm();await reload()}catch(e){fail(e)}
 };
 function editRec(id){const r=records.find(x=>x.id===id);if(!r)return;editingId=id;scores={...r.scores};
  $("#fDate").value=r.date;$("#fTeacher").value=r.teacherId;$("#fSubject").value=r.subject;$("#fClass").value=r.className||"";$("#fPeriod").value=r.period;$("#fEval").value=r.evaluator||"";
@@ -278,10 +281,10 @@ $("#teachTable").addEventListener("click",async e=>{const id=e.target.dataset.td
  if(confirm("நீக்கவா?")){await store.remove("teachers",id);await reload()}});
 $("#tAdd").onclick=async()=>{const name=$("#tName").value.trim();if(!name)return toast("பெயரை உள்ளிடவும்");
  if(teachers.some(t=>t.name===name))return toast("இப்பெயர் ஏற்கனவே உள்ளது");
- await store.save("teachers",{id:uid(),name,subject:$("#tSub").value.trim()});$("#tName").value=$("#tSub").value="";await reload()};
-$("#tBulkBtn").onclick=async()=>{let n=0;for(const line of $("#tBulk").value.split("\n")){const [name,subject=""]=line.split(",").map(s=>s.trim());
+ try{await store.save("teachers",{id:uid(),name,subject:$("#tSub").value.trim()});$("#tName").value=$("#tSub").value="";toast("சேர்க்கப்பட்டது ✓");await reload()}catch(e){fail(e)}};
+$("#tBulkBtn").onclick=async()=>{let n=0;try{for(const line of $("#tBulk").value.split("\n")){const [name,subject=""]=line.split(",").map(s=>s.trim());
  if(name&&!teachers.some(t=>t.name===name)){await store.save("teachers",{id:uid(),name,subject});teachers.push({name});n++}}
- $("#tBulk").value="";toast(n+" ஆசிரியர்கள் சேர்க்கப்பட்டனர்");await reload()};
+ $("#tBulk").value="";toast(n+" ஆசிரியர்கள் சேர்க்கப்பட்டனர்");await reload()}catch(e){fail(e)}};
 
 /* ---------- results ---------- */
 function agg(rs){const ev=rs.reduce((a,r)=>a+r.evaluated,0),ob=rs.reduce((a,r)=>a+r.obtained,0);return{n:rs.length,ev,max:ev*6,ob,pct:ev?ob/(ev*6):null}}
