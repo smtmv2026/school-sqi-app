@@ -649,7 +649,10 @@ var state = {
   fatalError:null,
   reportScope:null,
   canInstall:false,
-  deferredInstallPrompt:null
+  deferredInstallPrompt:null,
+  ltSupervisions:null,     // array of records from supervision.html's lt_supervisions collection, once loaded
+  ltSupervisionsUnsub:null,
+  ltSupervisionsError:null
 };
 
 var auth=null, db=null, secondaryApp=null;
@@ -785,6 +788,10 @@ function buildEmptyDeptData(deptId){
 }
 
 function computeDeptStats(deptId){
+  if(deptId==='d2'){
+    var lt = computeLtStats();
+    return {total:LT_MAX_PER_RECORD, scored:lt.count, percent:lt.percent, grade:lt.grade, isSupervisionModel:true, recordCount:lt.count};
+  }
   var dData = state.deptData[deptId];
   var total=0, scored=0, sum=0;
   if(dData && dData.criteria){
@@ -910,6 +917,34 @@ function subscribeSchoolMeta(onChange){
     if(snap.exists){ state.school = snap.data(); }
     if(onChange) onChange();
   });
+}
+
+/* கற்றல் கற்பித்தல் மேற்பார்வை (supervision.html) அதே Firebase திட்டத்தில் எழுதும்
+   lt_supervisions collection ஐ இங்கிருந்தே படித்து, "கற்றல் கற்பித்தல் மதிப்பீடு"
+   துறையின் % ஐ அதே 180-per-record சூத்திரப்படி (supervision.html இல் உள்ளதே) கணக்கிடுகிறோம். */
+var LT_MAX_PER_RECORD = 180;
+function subscribeLtSupervisions(onChange){
+  if(state.ltSupervisionsUnsub) return;
+  state.ltSupervisionsUnsub = db.collection('lt_supervisions').onSnapshot(function(snap){
+    var rows = [];
+    snap.forEach(function(doc){ rows.push(Object.assign({id:doc.id}, doc.data())); });
+    state.ltSupervisions = rows;
+    state.ltSupervisionsError = null;
+    if(onChange) onChange();
+  }, function(err){
+    console.error('lt_supervisions snapshot error', err);
+    state.ltSupervisionsError = (err && err.code) ? err.code : (err && err.message) || 'unknown error';
+    if(onChange) onChange();
+  });
+}
+function computeLtStats(){
+  var rows = state.ltSupervisions || [];
+  var n = rows.length;
+  var maxPoints = n*LT_MAX_PER_RECORD;
+  var earned = rows.reduce(function(s,r){ return s+(r.obtained||0); }, 0);
+  var percent = n>0 ? Math.round((earned/maxPoints)*100) : null;
+  var grade = percent!=null ? gradeInfo(percent) : null;
+  return {records:rows, count:n, maxPoints:maxPoints, earned:earned, percent:percent, grade:grade};
 }
 
 /* ---------------- auth ---------------- */
@@ -1165,6 +1200,44 @@ function renderDeptView(app, deptId, opts){
   var stats = computeDeptStats(deptId);
   var grade = stats.grade;
 
+  if(deptId==='d2'){
+    subscribeLtSupervisions(function(){ if(state.view==='dept'||state.view==='adminDept'){ renderDeptView(app, deptId, opts); } });
+    var lt = computeLtStats();
+    app.innerHTML =
+      topbarHtml('<button class="btn-ghost" id="btnBack">'+(opts.admin?'← முகாமைக்குத் திரும்பு':'← வெளியேறு')+'</button>') +
+      '<div class="dept-header">'+
+        '<h1>'+escapeHtml(dept.name)+'</h1>'+
+        '<p class="dept-sub">'+dept.en+'</p>'+
+        '<div class="stat-row">'+
+          '<div class="stat-box"><span class="stat-num">'+(stats.percent!=null?stats.percent+'%':'—')+'</span><span class="stat-label">அடைந்த சதவீதம்</span></div>'+
+          '<div class="stat-box"><span class="stat-num">'+lt.count+'</span><span class="stat-label">மேற்பார்வை செய்யப்பட்ட ஆசிரியர் பதிவுகள்</span></div>'+
+          '<div class="stat-box"><span class="badge '+(grade?grade.cls:'')+'">'+(grade?grade.label:'தொடங்கவில்லை')+'</span></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="setup-notice">இந்தத் துறையின் மதிப்பீடு <strong>"கற்றல் கற்பித்தல் மேற்பார்வை"</strong> எனும் தனிப் பக்கத்தில் (ஆசிரியர் ஒவ்வொருவரையும் தனித்தனியாக அவதானித்து 30 சுட்டிகளுக்கும் புள்ளியிடும் படிவம்) செய்யப்படுகிறது. கீழே உள்ள பொத்தானை அழுத்தி அதைத் திறக்கவும் — அங்கு பதிவு செய்யப்படும் அனைத்தும் இங்கு தானாகவே தெரியும்.</div>'+
+      '<p><a class="btn-primary" style="text-decoration:none;display:inline-block" href="supervision.html" target="_blank" rel="noopener">கற்றல் கற்பித்தல் மேற்பார்வைப் படிவத்தைத் திற ↗</a></p>'+
+      '<table class="setup-table"><thead><tr><th>#</th><th>திகதி</th><th>ஆசிரியர்</th><th>பாடம்</th><th>வகுப்பு</th><th>மொத்த மதிப்பெண்கள்</th><th>பெற்ற மதிப்பெண்கள்</th></tr></thead>'+
+      '<tbody>'+
+        (lt.records.length ? lt.records.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); }).map(function(r,i){
+          return '<tr><td>'+(i+1)+'</td><td>'+escapeHtml(r.date||'—')+'</td><td>'+escapeHtml(r.teacherName||'—')+'</td>'+
+            '<td>'+escapeHtml(r.subject||'—')+'</td><td>'+escapeHtml(r.className||'—')+'</td>'+
+            '<td>'+LT_MAX_PER_RECORD+'</td><td>'+(r.obtained||0)+'</td></tr>';
+        }).join('') : '<tr><td colspan="7" style="color:var(--ink-soft)">இதுவரை எந்த ஆசிரியர் மேற்பார்வையும் பதிவு செய்யப்படவில்லை.</td></tr>')+
+      '</tbody></table>'+
+      '<div class="reflect-box">'+
+        '<label>இந்தத் துறை தொடர்பான கலந்துரையாடல் குறிப்புகள்</label>'+
+        '<textarea id="deptNote" placeholder="கலந்துரையாடலில் எழுந்த முக்கிய கருத்துகளை இங்கு பதிவு செய்யவும்">'+escapeHtml(dData.note||'')+'</textarea>'+
+      '</div>'+
+      '<footer class="app-footer">பாடசாலைக் கல்விப் பண்புத்தரத்தை உறுதி செய்வதற்கான மதிப்பீட்டு வடிவமைப்பை அடிப்படையாகக் கொண்டது.</footer>';
+
+    document.getElementById('btnBack').onclick=function(){
+      state.view = opts.admin ? 'admin' : 'login';
+      renderApp();
+    };
+    document.getElementById('deptNote').oninput=function(e){ dData.note=e.target.value; scheduleSaveDept(deptId); };
+    return;
+  }
+
   app.innerHTML =
     topbarHtml('<button class="btn-ghost" id="btnBack">'+(opts.admin?'← முகாமைக்குத் திரும்பு':'← வெளியேறு')+'</button>') +
     '<div class="dept-header">'+
@@ -1299,16 +1372,18 @@ function deptCardHtml(d){
 
 function renderAdminOverview(app){
   DEPARTMENTS.forEach(function(d){ subscribeDept(d.id, function(){ if(state.view==='admin') renderAdminOverview(app); }); });
+  subscribeLtSupervisions(function(){ if(state.view==='admin') renderAdminOverview(app); });
   var errDepts = Object.keys(state.deptErrors);
-  if(errDepts.length){
+  if(errDepts.length || state.ltSupervisionsError){
     app.innerHTML = topbarHtml('<button class="btn-ghost" id="btnLogout2">← வெளியேறு</button>') +
       '<div class="setup-notice" style="margin-top:20px"><strong>தரவைப் பெற முடியவில்லை.</strong><br>'+
       errDepts.map(function(id){ return escapeHtml(deptById(id).name)+': <code>'+escapeHtml(state.deptErrors[id])+'</code>'; }).join('<br>')+
+      (state.ltSupervisionsError ? (errDepts.length?'<br>':'')+'கற்றல் கற்பித்தல் மேற்பார்வை (lt_supervisions): <code>'+escapeHtml(state.ltSupervisionsError)+'</code>' : '')+
       '<br><br>இது பொதுவாக Firestore Rules இன்னும் Publish செய்யப்படவில்லை என்பதைக் குறிக்கும் (permission-denied எனில் நிச்சயம் அதுவே). Firebase console → Firestore Database → Rules இல் Claude தந்த rules முழுமையாக ஒட்டப்பட்டு Publish செய்யப்பட்டுள்ளதா எனச் சரிபார்க்கவும்; பின் இப்பக்கத்தை மீள் ஏற்றவும் (F5).</div>';
     var lb = document.getElementById('btnLogout2'); if(lb) lb.onclick=function(){ unsubscribeAllDepts(); auth.signOut(); };
     return;
   }
-  if(DEPARTMENTS.some(function(d){ return !state.deptData[d.id]; })){
+  if(DEPARTMENTS.some(function(d){ return !state.deptData[d.id]; }) || state.ltSupervisions===null){
     app.innerHTML = topbarHtml('') + '<div class="center-wrap"><p style="color:var(--ink-soft)">தரவு ஏற்றப்படுகிறது…</p></div>';
     return;
   }
