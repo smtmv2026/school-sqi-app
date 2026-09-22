@@ -290,29 +290,12 @@ $("#jsonIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const
 /* ---------- teachers ---------- */
 let editingTeacher=null;
 function renderTeachers(){
- $("#teachTable").innerHTML=`<tr><th>#</th><th>பெயர்</th><th>பாடம் / பிரிவு</th><th>மேற்பார்வைகள்</th><th></th></tr>`+
- (teachers.length?teachers.map((t,i)=>{const n=records.filter(r=>r.teacherId===t.id).length;
-  if(editingTeacher===t.id)return `<tr><td class="c">${i+1}</td><td><input id="teName" value="${esc(t.name)}"></td><td><input id="teSub" value="${esc(t.subject)}"></td><td class="c">${n}</td><td><div class="row"><button class="btn sm" data-ts="${t.id}">சேமி</button><button class="btn sec sm" data-tc="1">ரத்து</button></div></td></tr>`;
-  return `<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td>${esc(t.subject)}</td><td class="c">${n}</td><td><div class="row"><button class="btn sec sm" data-te="${t.id}">திருத்து</button><button class="btn danger sm" data-td="${t.id}">நீக்கு</button></div></td></tr>`}).join(""):`<tr><td colspan="5" class="mut">ஆசிரியர்கள் இல்லை</td></tr>`);
+ $("#teachTable").innerHTML=`<tr><th>#</th><th>ஆசிரியர் பெயர்</th><th>பாடம்</th><th>வகுப்பு</th><th>திகதி</th><th>மொத்த மதிப்பெண்கள்</th><th>ஆசிரியர் பெற்றுக்கொண்ட மதிப்பெண்கள்</th><th></th></tr>`+
+ (records.length?records.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.teacherName)}</td><td>${esc(r.subject)}</td><td>${esc(r.className)}</td><td>${fmtDate(r.date)}</td><td class="c">180</td><td class="c">${r.obtained}</td><td><div class="row"><button class="btn sec sm" data-e="${r.id}">திருத்து</button><button class="btn danger sm" data-d="${r.id}">நீக்கு</button></div></td></tr>`).join(""):`<tr><td colspan="8" class="mut">இதுவரை மேற்பார்வைப் பதிவுகள் இல்லை</td></tr>`);
 }
 $("#teachTable").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
- try{
-  if(b.dataset.te){editingTeacher=b.dataset.te;renderTeachers();return}
-  if(b.dataset.tc){editingTeacher=null;renderTeachers();return}
-  if(b.dataset.ts){
-   const t=teachers.find(x=>x.id===b.dataset.ts);const name=$("#teName").value.trim(),subject=$("#teSub").value.trim();
-   if(!name)return toast("பெயரை உள்ளிடவும்");
-   if(teachers.some(x=>x.id!==t.id&&x.name===name))return toast("இப்பெயர் வேறொரு ஆசிரியருக்கு ஏற்கனவே உள்ளது");
-   await store.save("teachers",{...t,name,subject});
-   if(name!==t.name){for(const r of records.filter(r=>r.teacherId===t.id))await store.save("supervisions",{...r,teacherName:name})}
-   editingTeacher=null;toast("மாற்றம் சேமிக்கப்பட்டது ✓");await reload();return}
-  if(b.dataset.td){
-   const t=teachers.find(x=>x.id===b.dataset.td);const rs=records.filter(r=>r.teacherId===t.id);
-   const msg=rs.length?`"${t.name}" என்ற ஆசிரியரையும் அவரது ${rs.length} மேற்பார்வைப் பதிவுகளையும் நிரந்தரமாக நீக்கவா?`:`"${t.name}" ஐ நீக்கவா?`;
-   if(!confirm(msg))return;
-   for(const r of rs)await store.remove("supervisions",r.id);
-   await store.remove("teachers",t.id);toast("நீக்கப்பட்டது");await reload()}
- }catch(err){fail(err)}
+ if(b.dataset.e){editRec(b.dataset.e);showTab("entry")}
+ if(b.dataset.d&&confirm("இப்பதிவை நிரந்தரமாக நீக்கவா?")){await store.remove("supervisions",b.dataset.d);toast("நீக்கப்பட்டது");await reload()}
 });
 $("#tAdd").onclick=async()=>{const name=$("#tName").value.trim();if(!name)return toast("பெயரை உள்ளிடவும்");
  if(teachers.some(t=>t.name===name))return toast("இப்பெயர் ஏற்கனவே உள்ளது");
@@ -322,12 +305,12 @@ $("#tBulkBtn").onclick=async()=>{let n=0;try{for(const line of $("#tBulk").value
  $("#tBulk").value="";toast(n+" ஆசிரியர்கள் சேர்க்கப்பட்டனர்");await reload()}catch(e){fail(e)}};
 
 /* ---------- results ---------- */
-function agg(rs){const ev=rs.reduce((a,r)=>a+r.evaluated,0),ob=rs.reduce((a,r)=>a+r.obtained,0);return{n:rs.length,ev,max:ev*6,ob,pct:ev?ob/(ev*6):null}}
+function agg(rs){const ev=rs.reduce((a,r)=>a+r.evaluated,0),ob=rs.reduce((a,r)=>a+r.obtained,0);const max=rs.length*180;return{n:rs.length,ev,max,ob,pct:rs.length?ob/max:null}}
 const bar=p=>p==null?"":`<div class="bar"><i style="width:${Math.round(p*100)}%"></i></div>`;
 function renderResults(){
  const a=agg(records);
- $("#overall").innerHTML=[["மேற்பார்வை செய்யப்பட்ட ஆசிரியர்கள்",new Set(records.map(r=>r.teacherId)).size],["மொத்த மேற்பார்வைகள்",a.n],["மதிப்பிடப்பட்ட சுட்டிகள்",a.ev],["பெறவேண்டிய உச்சப் புள்ளிகள்",a.max],["பெறப்பட்ட புள்ளிகள்",a.ob],["மொத்தச் சதவீதம்",pc(a.pct)]].map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
- $("#resTeach").innerHTML=`<tr><th>#</th><th>ஆசிரியர்</th><th>மேற்பார்வைகள்</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th><th></th></tr>`+
+ $("#overall").innerHTML=[["மேற்பார்வை செய்யப்பட்ட ஆசிரியர்கள்",new Set(records.map(r=>r.teacherId)).size],["மொத்த மேற்பார்வைகள்",a.n],["மதிப்பிடப்பட்ட சுட்டிகள்",a.ev],["பெறவேண்டிய உச்சப் புள்ளிகள் (30×6×பதிவுகள்)",a.max],["பெறப்பட்ட புள்ளிகள்",a.ob],["மொத்தச் சதவீதம்",pc(a.pct)]].map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
+ $("#resTeach").innerHTML=`<tr><th>#</th><th>ஆசிரியர்</th><th>மேற்பார்வைகள்</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள் (180×பதிவுகள்)</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th><th></th></tr>`+
   teachers.map((t,i)=>{const x=agg(records.filter(r=>r.teacherId===t.id));return `<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td class="c">${x.n}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td><td>${bar(x.pct)}</td></tr>`}).join("");
  const sums=code=>{let ev=0,ob=0;records.forEach(r=>IND.filter(i=>code==null||i.g===code).forEach(i=>{const v=r.scores[i.code];if(v){ev++;ob+=v}}));return{ev,ob,max:ev*6,pct:ev?ob/(ev*6):null}};
  $("#resCrit").innerHTML=`<tr><th>குறியீடு</th><th>நியதி</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th><th></th></tr>`+
