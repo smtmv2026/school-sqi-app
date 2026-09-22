@@ -44,6 +44,9 @@ th{background:var(--orange);text-align:center}
 td.c{text-align:center}
 .bar{height:8px;background:#e5e7e0;border-radius:4px;min-width:70px}.bar i{display:block;height:100%;background:#63be7b;border-radius:4px}
 .scroll{overflow-x:auto}
+table.teach-tbl{table-layout:fixed}
+table.teach-tbl th:nth-child(2),table.teach-tbl td:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.teach-tbl td{word-break:break-word}
 .mut{color:var(--mut);font-size:13px}
 .note{background:#fff7e6;border:1px solid #f3d9a4;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px}
 #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 18px;border-radius:8px;display:none;z-index:50}
@@ -139,7 +142,8 @@ body.embed main{padding:0}
   <div class="row" style="margin:10px 0"><button class="btn" id="tAdd">சேர்</button><span class="mut">அல்லது பல பெயர்களை ஒட்டவும் (ஒரு வரிக்கு ஒரு பெயர்):</span></div>
   <textarea id="tBulk" rows="3" placeholder="பெயர், பாடம் (பாடம் விருப்பத்திற்குரியது)"></textarea>
   <div class="row" style="margin:8px 0"><button class="btn sec sm" id="tBulkBtn">பட்டியலாகச் சேர்</button></div>
-  <div class="scroll"><table id="teachTable"></table></div>
+  <div class="row" style="margin:8px 0"><button class="btn sec sm" id="teachPrintBtn">இப்பட்டியலை அச்சிடு / PDF (A4)</button></div>
+  <div class="scroll"><table id="teachTable" class="teach-tbl"></table></div>
  </div>
 </section>
 
@@ -289,10 +293,27 @@ $("#jsonIn").onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const
 
 /* ---------- teachers ---------- */
 let editingTeacher=null;
+const TEACH_COLGROUP=`<colgroup><col style="width:32px"><col style="width:26%"><col style="width:11%"><col style="width:10%"><col style="width:11%"><col style="width:11%"><col style="width:11%"><col></colgroup>`;
 function renderTeachers(){
- $("#teachTable").innerHTML=`<tr><th>#</th><th>ஆசிரியர் பெயர்</th><th>பாடம்</th><th>வகுப்பு</th><th>திகதி</th><th>மொத்த மதிப்பெண்கள்</th><th>ஆசிரியர் பெற்றுக்கொண்ட மதிப்பெண்கள்</th><th></th></tr>`+
+ $("#teachTable").innerHTML=TEACH_COLGROUP+`<tr><th>#</th><th>ஆசிரியர் பெயர்</th><th>பாடம்</th><th>வகுப்பு</th><th>திகதி</th><th>மொத்த மதிப்பெண்கள்</th><th>ஆசிரியர் பெற்றுக்கொண்ட மதிப்பெண்கள்</th><th></th></tr>`+
  (records.length?records.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.teacherName)}</td><td>${esc(r.subject)}</td><td>${esc(r.className)}</td><td>${fmtDate(r.date)}</td><td class="c">180</td><td class="c">${r.obtained}</td><td><div class="row"><button class="btn sec sm" data-e="${r.id}">திருத்து</button><button class="btn danger sm" data-d="${r.id}">நீக்கு</button></div></td></tr>`).join(""):`<tr><td colspan="8" class="mut">இதுவரை மேற்பார்வைப் பதிவுகள் இல்லை</td></tr>`);
 }
+function printTeacherList(){
+ const rows=records.map((r,i)=>`<tr><td class="c">${i+1}</td><td>${esc(r.teacherName)}</td><td>${esc(r.subject)}</td><td>${esc(r.className)}</td><td class="c">${fmtDate(r.date)}</td><td class="c">180</td><td class="c">${r.obtained}</td></tr>`).join("")
+  ||`<tr><td colspan="7" class="c">பதிவுகள் இல்லை</td></tr>`;
+ const today=new Date().toLocaleDateString("ta-LK");
+ const html=`<div class="pageform">
+  <div style="font-size:13px">மதிப்பீட்டுப் படிவம் 02</div>
+  <h2>கற்றல் கற்பித்தல் மேற்பார்வை – ஆசிரியர் பட்டியல்</h2>
+  <p style="margin:4px 0">பாடசாலையின் பெயர் : <b>${esc(SCHOOL_NAME)}</b> &nbsp;&nbsp; அச்சிடப்பட்ட திகதி : ${today}</p>
+  <table class="teach-tbl"><colgroup><col style="width:6%"><col style="width:26%"><col style="width:14%"><col style="width:12%"><col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>
+  <thead><tr><th>#</th><th>ஆசிரியர் பெயர்</th><th>பாடம்</th><th>வகுப்பு</th><th>திகதி</th><th>மொத்த<br>மதிப்பெண்கள்</th><th>பெற்ற<br>மதிப்பெண்கள்</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <p style="margin-top:16px">அதிபரின் ஒப்பம் : ...................................... &nbsp;&nbsp;&nbsp; திகதி : ......................................</p>
+ </div>`;
+ doPrint(html);
+}
+$("#teachPrintBtn").onclick=printTeacherList;
 $("#teachTable").addEventListener("click",async e=>{const b=e.target.closest("button");if(!b)return;
  if(b.dataset.e){editRec(b.dataset.e);showTab("entry")}
  if(b.dataset.d&&confirm("இப்பதிவை நிரந்தரமாக நீக்கவா?")){await store.remove("supervisions",b.dataset.d);toast("நீக்கப்பட்டது");await reload()}
