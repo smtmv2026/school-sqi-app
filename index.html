@@ -649,8 +649,7 @@ var state = {
   fatalError:null,
   reportScope:null,
   canInstall:false,
-  deferredInstallPrompt:null,
-  teacherEditingId:{}
+  deferredInstallPrompt:null
 };
 
 var auth=null, db=null, secondaryApp=null;
@@ -764,10 +763,6 @@ function migrateDeptData(dData, deptId){
   if(!dData || !dData.criteria) return dData;
   dData.criteria.forEach(function(c){ c.indicators.forEach(migrateIndicator); });
   if(deptId==='d1') attachDept1Calc(dData);
-  if(deptId==='d2'){
-    if(!dData.teacherRecords) dData.teacherRecords = [];
-    if(!dData.draftTeacher) dData.draftTeacher = {name:'', subject:'', className:'', date:todayStr()};
-  }
   return dData;
 }
 
@@ -775,9 +770,6 @@ function isTypingInApp(){
   var a = document.activeElement;
   return a && (a.tagName==='INPUT' || a.tagName==='TEXTAREA') && document.getElementById('app').contains(a);
 }
-
-var TEACHER_MODEL_DEPTS = {d2:30}; // deptId -> total sutti count per single teacher observation
-function maxPointsPerRecord(deptId){ return (TEACHER_MODEL_DEPTS[deptId]||0)*6; }
 
 function buildEmptyDeptData(deptId){
   var seed = REAL_SEED[deptId] || [];
@@ -789,25 +781,11 @@ function buildEmptyDeptData(deptId){
   });
   var dData = {note:'', criteria:criteria};
   if(deptId==='d1') attachDept1Calc(dData);
-  if(TEACHER_MODEL_DEPTS[deptId]){
-    dData.teacherRecords = [];
-    dData.draftTeacher = {name:'', subject:'', className:'', date:todayStr()};
-  }
   return dData;
 }
 
 function computeDeptStats(deptId){
   var dData = state.deptData[deptId];
-  if(TEACHER_MODEL_DEPTS[deptId]){
-    var records = (dData && dData.teacherRecords) || [];
-    var n = records.length;
-    var maxPer = maxPointsPerRecord(deptId);
-    var totalPoints = n*maxPer;
-    var earned = records.reduce(function(s,r){ return s+(r.points||0); }, 0);
-    var percent = n>0 ? Math.round((earned/totalPoints)*100) : null;
-    var grade = percent!=null ? gradeInfo(percent) : null;
-    return {total:TEACHER_MODEL_DEPTS[deptId], scored:n, percent:percent, grade:grade, isTeacherModel:true, recordCount:n};
-  }
   var total=0, scored=0, sum=0;
   if(dData && dData.criteria){
     dData.criteria.forEach(function(c){
@@ -1187,12 +1165,6 @@ function renderDeptView(app, deptId, opts){
   var stats = computeDeptStats(deptId);
   var grade = stats.grade;
 
-  var isTeacherModel = !!TEACHER_MODEL_DEPTS[deptId];
-  var draft = dData.draftTeacher || {name:'', subject:'', className:'', date:todayStr()};
-  var records = dData.teacherRecords || [];
-  var maxPer = maxPointsPerRecord(deptId);
-  var editingId = state.teacherEditingId && state.teacherEditingId[deptId];
-
   app.innerHTML =
     topbarHtml('<button class="btn-ghost" id="btnBack">'+(opts.admin?'← முகாமைக்குத் திரும்பு':'← வெளியேறு')+'</button>') +
     '<div class="dept-header">'+
@@ -1200,43 +1172,11 @@ function renderDeptView(app, deptId, opts){
       '<p class="dept-sub">'+dept.en+'</p>'+
       '<div class="stat-row">'+
         '<div class="stat-box"><span class="stat-num">'+(stats.percent!=null?stats.percent+'%':'—')+'</span><span class="stat-label">அடைந்த சதவீதம்</span></div>'+
-        (isTeacherModel
-          ? '<div class="stat-box"><span class="stat-num">'+stats.recordCount+'</span><span class="stat-label">மதிப்பிடப்பட்ட ஆசிரியர்கள்</span></div>'
-          : '<div class="stat-box"><span class="stat-num">'+stats.scored+'/'+stats.total+'</span><span class="stat-label">மதிப்பிடப்பட்ட சுட்டிகள்</span></div>')+
+        '<div class="stat-box"><span class="stat-num">'+stats.scored+'/'+stats.total+'</span><span class="stat-label">மதிப்பிடப்பட்ட சுட்டிகள்</span></div>'+
         '<div class="stat-box"><span class="badge '+(grade?grade.cls:'')+'">'+(grade?grade.label:'தொடங்கவில்லை')+'</span></div>'+
       '</div>'+
     '</div>'+
-    (isTeacherModel ?
-      '<div class="criterion" style="margin-bottom:14px">'+
-        '<div class="criterion-head"><span class="crit-num">'+(editingId?'பதிவைத் திருத்துதல்':'புதிய ஆசிரியர் மேற்பார்வை')+'</span></div>'+
-        '<div style="display:flex;gap:12px;flex-wrap:wrap">'+
-          '<div class="field small"><label>ஆசிரியர் பெயர்</label><input type="text" id="teacherName" value="'+escapeHtml(draft.name||'')+'"></div>'+
-          '<div class="field small"><label>பாடம்</label><input type="text" id="teacherSubject" value="'+escapeHtml(draft.subject||'')+'"></div>'+
-          '<div class="field small"><label>வகுப்பு</label><input type="text" id="teacherClass" value="'+escapeHtml(draft.className||'')+'"></div>'+
-          '<div class="field small"><label>திகதி</label><input type="date" id="teacherDate" value="'+escapeHtml(draft.date||todayStr())+'"></div>'+
-        '</div>'+
-        '<p class="hint">கீழே உள்ள 4 நியதிகளிலும் 30 சுட்டிகளுக்கும் இந்த ஒரு அவதானிப்பிற்கான மதிப்பெண்களை இடவும்; முடிந்ததும் "பதிவைச் சேமி" அழுத்தவும்.</p>'+
-      '</div>'
-    : '')+
     '<div class="criteria-list" id="criteriaList">'+dData.criteria.map(function(c,i){ return criterionHtml(c,i,!!opts.admin); }).join('')+'</div>'+
-    (isTeacherModel ?
-      '<div style="display:flex;gap:10px;margin:8px 0 20px">'+
-        '<button type="button" class="btn-primary" id="btnSaveTeacherRecord">'+(editingId?'மாற்றங்களைச் சேமி':'பதிவைச் சேமி')+'</button>'+
-        (editingId ? '<button type="button" class="btn-ghost" id="btnCancelEditTeacher">திருத்தலை ரத்துச் செய்</button>' : '')+
-      '</div>'+
-      '<table class="setup-table"><thead><tr><th>#</th><th>திகதி</th><th>ஆசிரியர்</th><th>பாடம்</th><th>வகுப்பு</th><th>சுட்டிகள்</th><th>புள்ளிகள்</th><th>%</th><th></th></tr></thead>'+
-      '<tbody>'+
-        (records.length ? records.map(function(r,i){
-          var pct = maxPer>0 ? Math.round((r.points||0)/maxPer*100) : 0;
-          return '<tr data-rec="'+r.id+'">'+
-            '<td>'+(i+1)+'</td><td>'+escapeHtml(r.date||'—')+'</td><td>'+escapeHtml(r.teacherName||'—')+'</td>'+
-            '<td>'+escapeHtml(r.subject||'—')+'</td><td>'+escapeHtml(r.className||'—')+'</td>'+
-            '<td>'+TEACHER_MODEL_DEPTS[deptId]+'</td><td>'+(r.points||0)+'/'+maxPer+'</td><td>'+pct+'%</td>'+
-            '<td style="white-space:nowrap"><button class="btn-tiny" data-act="edit" data-rec="'+r.id+'">திருத்து</button> <button class="btn-tiny" data-act="del" data-rec="'+r.id+'">நீக்கு</button></td>'+
-          '</tr>';
-        }).join('') : '<tr><td colspan="9" style="color:var(--ink-soft)">இதுவரை எந்த ஆசிரியர் மேற்பார்வையும் பதிவு செய்யப்படவில்லை.</td></tr>')+
-      '</tbody></table>'
-    : '')+
     '<div class="reflect-box">'+
       '<label>இந்தத் துறை தொடர்பான கலந்துரையாடல் குறிப்புகள்</label>'+
       '<textarea id="deptNote" placeholder="கலந்துரையாடலில் எழுந்த முக்கிய கருத்துகளை இங்கு பதிவு செய்யவும்">'+escapeHtml(dData.note||'')+'</textarea>'+
@@ -1254,69 +1194,6 @@ function renderDeptView(app, deptId, opts){
   if(opts.admin){
     var repBtn = document.getElementById('btnDeptReport');
     if(repBtn) repBtn.onclick=function(){ state.reportScope={type:'dept', deptId:deptId}; state.view='report'; renderApp(); };
-  }
-
-  if(isTeacherModel){
-    function sumCurrentScores(){
-      var s=0; dData.criteria.forEach(function(c){ c.indicators.forEach(function(ind){ s += (ind.score||0); }); }); return s;
-    }
-    function resetCurrentScores(){
-      dData.criteria.forEach(function(c){ c.indicators.forEach(function(ind){ ind.score=0; }); });
-    }
-    function loadScoresFromRecord(rec){
-      dData.criteria.forEach(function(c){ c.indicators.forEach(function(ind){ ind.score = (rec.scores && rec.scores[ind.id]) || 0; }); });
-    }
-    document.getElementById('teacherName').oninput=function(e){ draft.name=e.target.value; dData.draftTeacher=draft; scheduleSaveDept(deptId); };
-    document.getElementById('teacherSubject').oninput=function(e){ draft.subject=e.target.value; dData.draftTeacher=draft; scheduleSaveDept(deptId); };
-    document.getElementById('teacherClass').oninput=function(e){ draft.className=e.target.value; dData.draftTeacher=draft; scheduleSaveDept(deptId); };
-    document.getElementById('teacherDate').onchange=function(e){ draft.date=e.target.value; dData.draftTeacher=draft; scheduleSaveDept(deptId); };
-
-    document.getElementById('btnSaveTeacherRecord').onclick=function(){
-      var scoresMap = {};
-      dData.criteria.forEach(function(c){ c.indicators.forEach(function(ind){ scoresMap[ind.id]=ind.score||0; }); });
-      var total = sumCurrentScores();
-      if(!draft.name || !draft.name.trim()){ alert('ஆசிரியர் பெயரை இடவும்.'); return; }
-      if(editingId){
-        var rec = records.filter(function(r){ return r.id===editingId; })[0];
-        if(rec){ rec.teacherName=draft.name; rec.subject=draft.subject; rec.className=draft.className; rec.date=draft.date; rec.points=total; rec.scores=scoresMap; }
-        if(state.teacherEditingId) delete state.teacherEditingId[deptId];
-      } else {
-        records.push({id:uid(), teacherName:draft.name, subject:draft.subject, className:draft.className, date:draft.date||todayStr(), points:total, scores:scoresMap});
-      }
-      dData.teacherRecords = records;
-      resetCurrentScores();
-      dData.draftTeacher = {name:'', subject:'', className:'', date:todayStr()};
-      scheduleSaveDept(deptId);
-      renderDeptView(app, deptId, opts);
-    };
-    var cancelBtn = document.getElementById('btnCancelEditTeacher');
-    if(cancelBtn){
-      cancelBtn.onclick=function(){
-        if(state.teacherEditingId) delete state.teacherEditingId[deptId];
-        resetCurrentScores();
-        dData.draftTeacher = {name:'', subject:'', className:'', date:todayStr()};
-        renderDeptView(app, deptId, opts);
-      };
-    }
-    app.querySelectorAll('[data-act="edit"]').forEach(function(btn){
-      btn.onclick=function(){
-        var rec = records.filter(function(r){ return r.id===btn.getAttribute('data-rec'); })[0];
-        if(!rec) return;
-        if(!state.teacherEditingId) state.teacherEditingId = {};
-        state.teacherEditingId[deptId] = rec.id;
-        loadScoresFromRecord(rec);
-        dData.draftTeacher = {name:rec.teacherName, subject:rec.subject, className:rec.className, date:rec.date};
-        renderDeptView(app, deptId, opts);
-      };
-    });
-    app.querySelectorAll('[data-act="del"]').forEach(function(btn){
-      btn.onclick=function(){
-        if(!confirm('இந்த ஆசிரியர் பதிவை நீக்கவா?')) return;
-        dData.teacherRecords = records.filter(function(r){ return r.id!==btn.getAttribute('data-rec'); });
-        scheduleSaveDept(deptId);
-        renderDeptView(app, deptId, opts);
-      };
-    });
   }
 
   var critEls = app.querySelectorAll('.criterion');
