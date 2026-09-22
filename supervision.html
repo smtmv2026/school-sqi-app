@@ -153,7 +153,7 @@ body.embed main{padding:0}
  <div class="card"><h2>அனைத்து ஆசிரியர்களினதும் மொத்த முடிவு</h2>
   <div class="stats" id="overall"></div>
   <p class="mut">மொத்தச் சதவீதம் = அனைத்து மேற்பார்வைகளிலும் பெறப்பட்ட புள்ளிகளின் கூட்டுத்தொகை ÷ பெறவேண்டிய உச்சப் புள்ளிகளின் கூட்டுத்தொகை × 100</p>
-  <div class="row"><button class="btn sec sm" id="resultsPrintBtn">முடிவுகளின் சுருக்கத்தை அச்சிடு / PDF (A4)</button></div>
+  <div class="row"><button class="btn sec sm" id="overallPrintBtn">இம்மொத்த முடிவை மட்டும் அச்சிடு / PDF (A4)</button> <button class="btn sec sm" id="resultsPrintBtn">முழுச் சுருக்கத்தையும் (4 பகுதிகளும்) அச்சிடு / PDF (A4)</button></div>
  </div>
  <div class="card"><h2>ஆசிரியர்வாரி முடிவுகள்</h2><div class="scroll"><table id="resTeach"></table></div></div>
  <div class="card"><h2>நியதிவாரி முடிவுகள்</h2><div class="scroll"><table id="resCrit"></table></div></div>
@@ -343,6 +343,26 @@ function renderResults(){
  $("#resInd").innerHTML=`<tr><th>குறியீடு</th><th>சுட்டி</th><th>எண்ணிக்கை</th><th>சராசரி (6 இல்)</th><th>சதவீதம்</th><th></th></tr>`+
   IND.map(i=>{const v=records.map(r=>r.scores[i.code]).filter(Boolean),s=v.reduce((a,b)=>a+b,0),p=v.length?s/(v.length*6):null;return `<tr><td class="c">${i.code}</td><td>${esc(i.text)}</td><td class="c">${v.length}</td><td class="c">${v.length?(s/v.length).toFixed(2):"–"}</td><td class="c">${pc(p)}</td><td>${bar(p)}</td></tr>`}).join("");
 }
+function printOverallOnly(){
+ const a=agg(records);
+ const today=new Date().toLocaleDateString("ta-LK");
+ const rows=[["மேற்பார்வை செய்யப்பட்ட ஆசிரியர்கள்",new Set(records.map(r=>r.teacherId)).size],
+  ["மொத்த மேற்பார்வைகள்",a.n],
+  ["மதிப்பிடப்பட்ட சுட்டிகள்",a.ev],
+  ["பெறவேண்டிய உச்சப் புள்ளிகள் (30×6×பதிவுகள்)",a.max],
+  ["பெறப்பட்ட புள்ளிகள்",a.ob],
+  ["மொத்தச் சதவீதம்",pc(a.pct)]].map(([l,v])=>`<tr><td>${l}</td><td class="c"><b>${v}</b></td></tr>`).join("");
+ const html=`<div class="pageform">
+  <div style="font-size:13px">மதிப்பீட்டுப் படிவம் 02</div>
+  <h2>கற்றல் கற்பித்தல் மேற்பார்வை – அனைத்து ஆசிரியர்களினதும் மொத்த முடிவு</h2>
+  <p style="margin:4px 0">பாடசாலையின் பெயர் : <b>${esc(SCHOOL_NAME)}</b> &nbsp;&nbsp; அச்சிடப்பட்ட திகதி : ${today}</p>
+  <table class="sum" style="width:75%;margin:16px auto 0"><tbody>${rows}</tbody></table>
+  <p style="font-size:13px;margin:14px 0 0">மொத்தச் சதவீதம் = அனைத்து மேற்பார்வைகளிலும் பெறப்பட்ட புள்ளிகளின் கூட்டுத்தொகை ÷ பெறவேண்டிய உச்சப் புள்ளிகளின் கூட்டுத்தொகை × 100</p>
+  <p style="margin-top:26px">அதிபரின் ஒப்பம் : ...................................... &nbsp;&nbsp;&nbsp; திகதி : ......................................</p>
+ </div>`;
+ doPrint(html);
+}
+$("#overallPrintBtn").onclick=printOverallOnly;
 function printResults(){
  const a=agg(records);
  const sums=code=>{let ev=0,ob=0;records.forEach(r=>IND.filter(i=>code==null||i.g===code).forEach(i=>{const v=r.scores[i.code];if(v){ev++;ob+=v}}));return{ev,ob,max:ev*6,pct:ev?ob/(ev*6):null}};
