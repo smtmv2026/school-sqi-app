@@ -152,7 +152,9 @@ body.embed main{padding:0}
 <section id="t-results">
  <div class="card"><h2>அனைத்து ஆசிரியர்களினதும் மொத்த முடிவு</h2>
   <div class="stats" id="overall"></div>
-  <p class="mut">மொத்தச் சதவீதம் = அனைத்து மேற்பார்வைகளிலும் பெறப்பட்ட புள்ளிகளின் கூட்டுத்தொகை ÷ பெறவேண்டிய உச்சப் புள்ளிகளின் கூட்டுத்தொகை × 100</p></div>
+  <p class="mut">மொத்தச் சதவீதம் = அனைத்து மேற்பார்வைகளிலும் பெறப்பட்ட புள்ளிகளின் கூட்டுத்தொகை ÷ பெறவேண்டிய உச்சப் புள்ளிகளின் கூட்டுத்தொகை × 100</p>
+  <div class="row"><button class="btn sec sm" id="resultsPrintBtn">முடிவுகளின் சுருக்கத்தை அச்சிடு / PDF (A4)</button></div>
+ </div>
  <div class="card"><h2>ஆசிரியர்வாரி முடிவுகள்</h2><div class="scroll"><table id="resTeach"></table></div></div>
  <div class="card"><h2>நியதிவாரி முடிவுகள்</h2><div class="scroll"><table id="resCrit"></table></div></div>
  <div class="card"><h2>சுட்டிவாரி முடிவுகள்</h2><div class="scroll"><table id="resInd"></table></div></div>
@@ -341,6 +343,32 @@ function renderResults(){
  $("#resInd").innerHTML=`<tr><th>குறியீடு</th><th>சுட்டி</th><th>எண்ணிக்கை</th><th>சராசரி (6 இல்)</th><th>சதவீதம்</th><th></th></tr>`+
   IND.map(i=>{const v=records.map(r=>r.scores[i.code]).filter(Boolean),s=v.reduce((a,b)=>a+b,0),p=v.length?s/(v.length*6):null;return `<tr><td class="c">${i.code}</td><td>${esc(i.text)}</td><td class="c">${v.length}</td><td class="c">${v.length?(s/v.length).toFixed(2):"–"}</td><td class="c">${pc(p)}</td><td>${bar(p)}</td></tr>`}).join("");
 }
+function printResults(){
+ const a=agg(records);
+ const sums=code=>{let ev=0,ob=0;records.forEach(r=>IND.filter(i=>code==null||i.g===code).forEach(i=>{const v=r.scores[i.code];if(v){ev++;ob+=v}}));return{ev,ob,max:ev*6,pct:ev?ob/(ev*6):null}};
+ const today=new Date().toLocaleDateString("ta-LK");
+ const overallRows=[["மேற்பார்வை செய்யப்பட்ட ஆசிரியர்கள்",new Set(records.map(r=>r.teacherId)).size],["மொத்த மேற்பார்வைகள்",a.n],["மதிப்பிடப்பட்ட சுட்டிகள்",a.ev],["பெறவேண்டிய உச்சப் புள்ளிகள் (30×6×பதிவுகள்)",a.max],["பெறப்பட்ட புள்ளிகள்",a.ob],["மொத்தச் சதவீதம்",pc(a.pct)]]
+  .map(([l,v])=>`<tr><td>${l}</td><td class="c"><b>${v}</b></td></tr>`).join("");
+ const teachRows=teachers.map((t,i)=>{const x=agg(records.filter(r=>r.teacherId===t.id));return `<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td class="c">${x.n}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td></tr>`}).join("")||`<tr><td colspan="7" class="c">தரவு இல்லை</td></tr>`;
+ const critRows=CRIT.map(g=>{const x=sums(g.code);return `<tr><td class="c">${g.code}</td><td>${esc(g.title)}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td></tr>`}).join("");
+ const indRows=IND.map(i=>{const v=records.map(r=>r.scores[i.code]).filter(Boolean),s=v.reduce((a,b)=>a+b,0),p=v.length?s/(v.length*6):null;return `<tr><td class="c">${i.code}</td><td class="txt">${esc(i.text)}</td><td class="c">${v.length}</td><td class="c">${v.length?(s/v.length).toFixed(2):"–"}</td><td class="c">${pc(p)}</td></tr>`}).join("");
+ const html=`<div class="pageform">
+  <div style="font-size:13px">மதிப்பீட்டுப் படிவம் 02</div>
+  <h2>கற்றல் கற்பித்தல் மேற்பார்வை – முடிவுகளின் சுருக்கம்</h2>
+  <p style="margin:4px 0">பாடசாலையின் பெயர் : <b>${esc(SCHOOL_NAME)}</b> &nbsp;&nbsp; அச்சிடப்பட்ட திகதி : ${today}</p>
+  <h3 style="margin:14px 0 6px;font-size:14px">அனைத்து ஆசிரியர்களினதும் மொத்த முடிவு</h3>
+  <table class="sum" style="width:70%"><tbody>${overallRows}</tbody></table>
+  <h3 style="margin:16px 0 6px;font-size:14px">ஆசிரியர்வாரி முடிவுகள்</h3>
+  <table><thead><tr><th>#</th><th>ஆசிரியர்</th><th>மேற்பார்வைகள்</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th></tr></thead><tbody>${teachRows}</tbody></table>
+  <h3 style="margin:16px 0 6px;font-size:14px">நியதிவாரி முடிவுகள்</h3>
+  <table><thead><tr><th>குறியீடு</th><th>நியதி</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th></tr></thead><tbody>${critRows}</tbody></table>
+  <h3 style="margin:16px 0 6px;font-size:14px">சுட்டிவாரி முடிவுகள்</h3>
+  <table><colgroup><col style="width:8%"><col><col style="width:10%"><col style="width:14%"><col style="width:12%"></colgroup>
+  <thead><tr><th>குறியீடு</th><th>சுட்டி</th><th>எண்ணிக்கை</th><th>சராசரி (6 இல்)</th><th>சதவீதம்</th></tr></thead><tbody>${indRows}</tbody></table>
+ </div>`;
+ doPrint(html);
+}
+$("#resultsPrintBtn").onclick=printResults;
 
 /* ---------- print (one form per supervision) ---------- */
 function recLabel(r){return `${fmtDate(r.date)} – ${r.subject}, பாடவேளை ${r.period}${r.className?" ("+r.className+")":""}`}
