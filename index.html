@@ -609,6 +609,19 @@ var firebaseConfig = {
 
 var CONFIG_IS_PLACEHOLDER = (firebaseConfig.apiKey.indexOf('PASTE_') === 0);
 
+/* SUPERADMIN SAFETY NET — permanent fix for "Superadmin login not working".
+   Whatever happens to the Firestore "users" collection or the Firestore
+   Rules (a rule pasted wrong, a role document missing/deleted by mistake,
+   a temporary permission-denied while rules propagate), any account whose
+   EMAIL is listed here always gets Admin access to this app. Add more
+   emails (lower-case, comma separated) if another person should always
+   be able to get in as Admin no matter what. This check happens entirely
+   in this file — it does not depend on Firestore at all. */
+var SUPERADMIN_EMAILS = ['antonsrilanka@gmail.com'];
+function isSuperAdminEmail(email){
+  return !!email && SUPERADMIN_EMAILS.indexOf(String(email).toLowerCase()) !== -1;
+}
+
 /* ---------------- constants ---------------- */
 
 var DEPARTMENTS = [
@@ -965,6 +978,24 @@ function fetchRole(uid){
 
 function routeAfterAuth(){
   if(!state.user){ state.view='login'; renderApp(); return; }
+
+  /* Superadmin safety net: this account always gets Admin, regardless of
+     what Firestore's "users" collection or Rules currently say. We still
+     try (in the background) to make sure the Firestore role document says
+     "admin" too, so the rest of the app (which checks Firestore Rules for
+     writes) keeps working — but we never wait on that, and we never let a
+     Firestore error block this account from getting in. */
+  if(isSuperAdminEmail(state.user.email)){
+    state.role = 'admin';
+    state.view = 'admin';
+    renderApp();
+    subscribeSchoolMeta(function(){ if(state.view==='admin') renderApp(); });
+    db.collection('users').doc(state.user.uid).set(
+      {email: state.user.email, role: 'admin'}, {merge:true}
+    ).catch(function(){ /* fine if this fails; the safety net above still lets them in */ });
+    return;
+  }
+
   fetchRole(state.user.uid).then(function(role){
     state.role = role;
     if(!role){ state.view='noRole'; renderApp(); return; }
@@ -972,6 +1003,10 @@ function routeAfterAuth(){
     if(role==='admin'){ state.view='admin'; renderApp(); }
     else if(deptById(role)){ state.currentDept=role; state.view='dept'; subscribeDept(role, function(){ if(state.view==='dept'&&!isTypingInApp()) renderApp(); }); renderApp(); }
     else { state.view='noRole'; renderApp(); }
+  }).catch(function(err){
+    state.view = 'authError';
+    state.authErrorMessage = (err && (err.code || err.message)) || 'unknown error';
+    renderApp();
   });
 }
 
@@ -983,6 +1018,7 @@ function renderApp(){
   if(state.view==='boot') return renderBoot(app);
   if(state.view==='login') return renderLogin(app);
   if(state.view==='noRole') return renderNoRole(app);
+  if(state.view==='authError') return renderAuthError(app);
   if(state.view==='dept') return renderDeptView(app, state.currentDept, {admin:false});
   if(state.view==='adminDept') return renderDeptView(app, state.currentDept, {admin:true});
   if(state.view==='admin') return renderAdminOverview(app);
@@ -1093,6 +1129,19 @@ function renderNoRole(app){
     '<div class="center-wrap"><div class="login-card">'+
       '<h1>அணுகல் பங்கு நியமிக்கப்படவில்லை</h1>'+
       '<p>உங்கள் கணக்கு ('+escapeHtml(state.user?state.user.email:'')+') உருவாக்கப்பட்டுள்ளது, ஆனால் இன்னும் எந்தத் துறையும் நியமிக்கப்படவில்லை. அதிபரிடம் தொடர்பு கொள்ளவும்.</p>'+
+    '</div></div>';
+  document.getElementById('btnLogout').onclick=function(){ auth.signOut(); };
+}
+
+function renderAuthError(app){
+  app.innerHTML =
+    topbarHtml('<button class="btn-ghost" id="btnLogout">← வெளியேறு</button>') +
+    '<div class="center-wrap"><div class="login-card" style="max-width:620px;text-align:left">'+
+      '<h1 style="text-align:center">உள்நுழைவு தடைப்பட்டது</h1>'+
+      '<p>உங்கள் மின்னஞ்சல் / கடவுச்சொல் சரியாக ஏற்றுக்கொள்ளப்பட்டது, ஆனால் உங்கள் அணுகல் பங்கை (role) Firestore இலிருந்து படிக்கும்போது பிழை ஏற்பட்டது:</p>'+
+      '<p style="font-family:monospace;background:#f2ece0;padding:8px 10px;border-radius:6px;word-break:break-all">'+escapeHtml(state.authErrorMessage||'')+'</p>'+
+      '<p>இது பொதுவாக Firestore Rules இன்னும் சரியாக Publish செய்யப்படவில்லை என்பதைக் குறிக்கும் (குறிப்பாக பிழையில் "permission" அல்லது "denied" என்றிருந்தால் அதுவே காரணம்). Firebase console → Firestore Database → Rules இல் சரியான rules ஒட்டப்பட்டு Publish செய்யப்பட்டுள்ளதா எனச் சரிபார்த்து, பின் இப்பக்கத்தை மீள் ஏற்றவும் (F5).</p>'+
+      '<p>குறிப்பு: Superadmin மின்னஞ்சலாக பட்டியலிடப்பட்ட கணக்கு (அதிபரின் கணக்கு) இந்தப் பிழையை ஒருபோதும் காணாது — அது எப்போதும் நேரடியாக உள்நுழையும்.</p>'+
     '</div></div>';
   document.getElementById('btnLogout').onclick=function(){ auth.signOut(); };
 }
