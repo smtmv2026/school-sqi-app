@@ -1981,14 +1981,14 @@ function renderWelcomeGate(app){
 
   if(state.isSuperAdmin){
     /* Superadmin's entry point is the schools list, not any one school's
-       dashboard — so this screen offers only that, one button, no detour. */
+       dashboard, and not a repeat of the topbar/card chrome shown
+       everywhere else — just the title, full-size, and one button. */
     app.innerHTML =
-      topbarHtml('<button class="btn-ghost" id="btnLogout2">← வெளியேறு</button>') +
-      '<div class="center-wrap"><div class="login-card" style="text-align:center">'+
-        '<h1 style="margin-bottom:6px">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு</h1>'+
-        '<p class="hint" style="margin:0 0 22px">'+escapeHtml(state.user?state.user.email:'')+'</p>'+
-        '<button class="btn-primary" id="btnGateSuperadmin" style="min-width:220px;font-size:1.05rem">🛠️ Superadmin Console</button>'+
-      '</div></div>';
+      '<button class="btn-ghost" id="btnLogout2" style="position:absolute;top:16px;right:16px">← வெளியேறு</button>'+
+      '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px">'+
+        '<h1 style="font-size:2.4rem;line-height:1.25;margin:0 0 32px;max-width:820px">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு</h1>'+
+        '<button class="btn-primary" id="btnGateSuperadmin" style="min-width:240px;font-size:1.1rem;padding:14px 28px">🛠️ Superadmin Console</button>'+
+      '</div>';
     document.getElementById('btnLogout2').onclick=function(){ auth.signOut(); };
     document.getElementById('btnGateSuperadmin').onclick=function(){ leaveSchoolContext(); state.view='superadmin'; renderApp(); };
     return;
