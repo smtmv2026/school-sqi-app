@@ -217,18 +217,26 @@
   .report-crit-title{ font-family:'Noto Serif Tamil',serif; font-weight:700; color:var(--maroon-deep); font-size:1.05rem; border-bottom:2px solid var(--gold); padding-bottom:6px; margin-bottom:12px; }
   .report-ind{ display:flex; flex-direction:column; align-items:stretch; gap:8px; border-top:1px dashed var(--line); padding:14px 0; page-break-inside:avoid; margin-bottom:6px; }
   .report-ind:first-child{ border-top:none; }
-  .report-entry{ display:flex; gap:14px; align-items:flex-start; padding:8px 0 8px 10px; border-left:2px solid var(--gold-light); page-break-inside:avoid; }
-  .report-img, .report-img-empty{ width:150px; height:110px; flex:0 0 auto; border-radius:5px; border:1px solid var(--line); }
-  .report-img{ object-fit:cover; }
-  .report-img-empty{ display:flex; align-items:center; justify-content:center; background:#F2ECDD; color:var(--ink-soft); font-size:.75rem; text-align:center; padding:6px; }
   .report-ind-body{ flex:1; min-width:0; }
   .report-ind-title{ font-weight:600; margin-bottom:4px; }
   .report-ind-note{ font-size:.88rem; color:var(--ink-soft); white-space:pre-wrap; }
   .report-print-header{ display:none; }
+
+  /* ---- evidence photo pages: exactly two photo+detail entries per A4 sheet ---- */
+  .report-photo-section{ margin-top:10px; }
+  .report-page{ display:flex; flex-direction:column; justify-content:center; gap:28px; min-height:9.5in; padding:6px 0; }
+  .report-entry{ display:flex; flex-direction:column; align-items:center; gap:10px; flex:1 1 0; justify-content:center; page-break-inside:avoid; }
+  .report-img, .report-img-empty{ width:500px; max-width:100%; height:350px; flex:0 0 auto; border-radius:5px; border:1px solid var(--line); }
+  .report-img{ object-fit:cover; }
+  .report-img-empty{ display:flex; align-items:center; justify-content:center; background:#F2ECDD; color:var(--ink-soft); font-size:.85rem; text-align:center; padding:6px; }
+  .report-page .report-ind-body{ text-align:center; max-width:500px; }
   @media print{
     .report-print-header{ display:block; text-align:center; margin-bottom:20px; }
     .report-crit-block{ break-inside:avoid; }
     .report-ind{ break-inside:avoid; }
+    .report-photo-section > h2{ break-before:page; }
+    .report-page{ break-after:page; break-inside:avoid; min-height:0; }
+    .report-page:last-child{ break-after:auto; }
     .report-entry{ break-inside:avoid; }
   }
 </style>
@@ -1007,17 +1015,16 @@ function getSecondaryApp(){
 }
 
 /* Every school keeps its own users subcollection: schools/{schoolId}/users/{uid}.
-   To find which school(s) a signed-in account belongs to (without already
-   knowing the schoolId), we store a "uid" field on every such document and
-   run a collectionGroup query across all schools for that field. */
-function findMyMemberships(myUid){
-  return db.collectionGroup('users').where('uid','==',myUid).get().then(function(snap){
-    var rows = [];
-    snap.forEach(function(doc){
-      var schoolId = doc.ref.parent.parent.id;
-      rows.push({schoolId:schoolId, role:doc.data().role, email:doc.data().email});
-    });
-    return rows;
+   To find which school a signed-in account belongs to WITHOUT already
+   knowing the schoolId (needed right after login), a simple top-level
+   "userSchoolMap/{uid}" document is kept in sync alongside it — a single,
+   direct, by-ID read that needs no collectionGroup query and no fragile
+   Firestore Rule to get right. */
+function userSchoolMapRef(uid){ return db.collection('userSchoolMap').doc(uid); }
+
+function findMyMembership(myUid){
+  return userSchoolMapRef(myUid).get().then(function(doc){
+    return doc.exists ? doc.data() : null; // {schoolId, role, email}
   });
 }
 
@@ -1055,12 +1062,25 @@ function routeAfterAuth(){
     return;
   }
 
-  findMyMemberships(state.user.uid).then(function(rows){
-    if(!rows.length){ state.view='noRole'; renderApp(); return; }
-    if(rows.length===1){ enterSchoolAsMember(rows[0].schoolId, rows[0].role); return; }
-    state.mySchools = rows;
-    state.view = 'schoolPicker';
-    renderApp();
+  findMyMembership(state.user.uid).then(function(m){
+    if(!m || !m.schoolId){ state.view='noRole'; renderApp(); return; }
+    return schoolDocRef(m.schoolId).get().then(function(sDoc){
+      var sData = sDoc.exists ? sDoc.data() : {};
+      var today = todayStr();
+      if(sData.accessStart && today < sData.accessStart){
+        state.view='accessBlocked';
+        state.accessBlockedMsg = 'இந்தப் பாடசாலையின் அணுகல் இன்னும் தொடங்கவில்லை. தொடக்கத் திகதி: '+sData.accessStart+'.';
+        renderApp();
+        return;
+      }
+      if(sData.accessEnd && today > sData.accessEnd){
+        state.view='accessBlocked';
+        state.accessBlockedMsg = 'இந்தப் பாடசாலையின் அணுகல் காலம் முடிவடைந்துள்ளது. முடிவுத் திகதி: '+sData.accessEnd+'. மேலும் தொடர அதிபரைத் தொடர்பு கொள்ளவும்.';
+        renderApp();
+        return;
+      }
+      enterSchoolAsMember(m.schoolId, m.role);
+    });
   }).catch(function(err){
     state.view = 'authError';
     state.authErrorMessage = (err && (err.code || err.message)) || 'unknown error';
@@ -1126,6 +1146,7 @@ function migrateOldDataIntoNewSchool(){
       var data = doc.data();
       data.uid = doc.id;
       batch.set(newSchoolRef.collection('users').doc(doc.id), data);
+      batch.set(db.collection('userSchoolMap').doc(doc.id), {schoolId:schoolId, role:data.role, email:data.email});
     });
     return batch.commit();
   }).then(function(){
@@ -1153,6 +1174,7 @@ function renderApp(){
   if(state.view==='boot'){ renderBoot(app); return; }
   if(state.view==='login'){ renderLogin(app); return; }
   if(state.view==='noRole'){ renderNoRole(app); return; }
+  if(state.view==='accessBlocked'){ renderAccessBlocked(app); return; }
   if(state.view==='authError'){ renderAuthError(app); return; }
   if(state.view==='superadmin'){ renderSuperAdmin(app); return; }
   if(state.view==='schoolPicker'){ renderSchoolPicker(app); return; }
@@ -1195,7 +1217,7 @@ function topbarHtml(rightHtml){
   return '<div class="topbar">'+
     '<div class="brand">'+brandMarkHtml(42)+
       '<div><div class="brand-title">'+escapeHtml(name)+'</div>'+
-      '<div class="brand-sub">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு'+(year?(' · '+escapeHtml(year)):'')+'</div></div>'+
+      '<div class="brand-sub">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு'+(year?(' · '+escapeHtml(year)):'')+(state.schoolId?(' · ID: '+escapeHtml(state.schoolId)):'')+'</div></div>'+
     '</div>'+
     '<div class="topbar-actions"><span id="saveStatus" class="save-status"></span>'+switchBtn+rightHtml+'</div>'+
   '</div>';
@@ -1276,6 +1298,16 @@ function renderNoRole(app){
   document.getElementById('btnLogout').onclick=function(){ auth.signOut(); };
 }
 
+function renderAccessBlocked(app){
+  app.innerHTML =
+    topbarHtml('<button class="btn-ghost" id="btnLogout">← வெளியேறு</button>') +
+    '<div class="center-wrap"><div class="login-card" style="max-width:560px;text-align:left">'+
+      '<h1 style="text-align:center">அணுகல் கிடைக்கவில்லை</h1>'+
+      '<p>'+escapeHtml(state.accessBlockedMsg||'')+'</p>'+
+    '</div></div>';
+  document.getElementById('btnLogout').onclick=function(){ auth.signOut(); };
+}
+
 function renderAuthError(app){
   app.innerHTML =
     topbarHtml('<button class="btn-ghost" id="btnLogout">← வெளியேறு</button>') +
@@ -1342,14 +1374,35 @@ function renderSuperAdmin(app){
     '<div class="error-msg" id="saErr"></div>'+
     '<div class="setup-notice">இந்தச் செயலி முன்பு St. Mary\'s Tamil Maha Vidyalaya ஒரு பள்ளிக்காக மட்டும் பயன்பட்டிருந்தது. அதன் ஏற்கெனவே உள்ள தரவை (துறைகள், பயனர்கள், கற்றல் கற்பித்தல் மேற்பார்வைப் பதிவுகள்) இழக்காமல் ஒரு தனிப் பள்ளியாக இங்கு கொண்டு வர கீழுள்ள பொத்தானை அழுத்தவும் — <strong>ஒரே ஒரு தடவை மட்டும்</strong> அழுத்தவும் (இது பழைய தரவை நீக்காது, ஒவ்வொரு முறையும் புதிதாக நகலெடுக்கும்).</div>'+
     '<p><button type="button" class="btn-outline" id="btnMigrate">St. Mary\'s இன் முன்பிருந்த தரவைக் கொண்டுவா</button></p>'+
-    '<table class="setup-table"><thead><tr><th>பள்ளி</th><th>ஆண்டு</th><th></th></tr></thead>'+
+    '<table class="setup-table"><thead><tr><th>பள்ளி</th><th>ஆண்டு</th><th>அணுகல் தொடக்கம்</th><th>அணுகல் முடிவு</th><th>ID</th><th></th></tr></thead>'+
     '<tbody id="schoolsTbody">'+
       (state.schools.length ? state.schools.map(function(s){
         return '<tr><td>'+escapeHtml(s.name||'(பெயரிடப்படாதது)')+'</td><td>'+escapeHtml(s.year||'—')+'</td>'+
+          '<td><input type="date" class="calc-input" style="width:130px" data-acc-start="'+s.id+'" value="'+escapeHtml(s.accessStart||'')+'"></td>'+
+          '<td><input type="date" class="calc-input" style="width:130px" data-acc-end="'+s.id+'" value="'+escapeHtml(s.accessEnd||'')+'"></td>'+
+          '<td style="font-size:.72rem;color:var(--ink-soft)">'+escapeHtml(s.id)+'</td>'+
           '<td style="white-space:nowrap"><button class="btn-tiny" data-open="'+s.id+'">திற →</button> '+
+          '<button class="btn-tiny" data-check="'+s.id+'" data-name="'+escapeHtml(s.name||'')+'">தரவு சரிபார்</button> '+
           '<button class="btn-tiny" data-del="'+s.id+'" data-name="'+escapeHtml(s.name||'')+'">நீக்கு</button></td></tr>';
-      }).join('') : '<tr><td colspan="3" style="color:var(--ink-soft)">இதுவரை பள்ளிகள் எதுவும் இல்லை.</td></tr>')+
-    '</tbody></table>';
+      }).join('') : '<tr><td colspan="6" style="color:var(--ink-soft)">இதுவரை பள்ளிகள் எதுவும் இல்லை.</td></tr>')+
+    '</tbody></table>'+
+    '<p class="hint">அணுகல் தொடக்கம் / முடிவு திகதிகளை காலியாக விட்டால் அப்பள்ளிக்கு காலவரம்பு இல்லாமல் எப்போதும் அணுகலாம். இத்திகதிகள் அதிபர் (Superadmin) கணக்கிற்குப் பொருந்தாது — அது எப்போதும் அனைத்துப் பள்ளிகளையும் அணுகும்.</p>'+
+    '<div class="error-msg" id="checkMsg" style="margin-top:6px"></div>'+
+    '<div class="setup-notice">'+
+      '<strong>பயனர் → பள்ளி நியமிப்புகள் (கண்டறிதல் கருவி):</strong> ஒரு பயனர் எந்தப் பள்ளியில், எந்தப் பங்குடன் (role) இணைக்கப்பட்டுள்ளார் என்பதை இங்கு பார்க்கலாம் — smtmv2026 போன்ற கணக்குகள் தவறான பள்ளியில் தரவு சேர்க்கிறதா என ஒப்பிட்டுப் பார்க்க இது உதவும்.'+
+      '<p><button type="button" class="btn-outline" id="btnLoadMap">பயனர்-பள்ளி நியமிப்புகளைக் காட்டு</button></p>'+
+      '<div id="mapResult"></div>'+
+    '</div>'+
+    '<div class="setup-notice">'+
+      '<strong>தொலைந்த பள்ளி ஆவணத்தை மீட்டமை (Restore tool):</strong> சில நேரங்களில் ஒரு பள்ளியின் துறை/பயனர் தரவு (departments, users) Firestore இல் முழுமையாக இருந்தும், அப்பள்ளியின் மேல்மட்ட ஆவணம் (schools/{ID} — பெயர், ஆண்டு) மட்டும் இல்லாமல் போய், அப்பள்ளி இந்தப் பட்டியலில் காட்டப்படாமல் போகலாம் (எ.கா. "நீக்கு" பொத்தான் தவறுதலாக அழுத்தப்பட்டால்). இங்கு அந்தப் பள்ளியின் ID ஐயும் சரியான பெயரையும் இட்டு மீட்டமைத்தால், அதன் கீழுள்ள அனைத்துத் துறைத் தரவும் (இழப்பு எதுவுமின்றி) உடனே மீண்டும் தோன்றும்.'+
+      '<div class="add-user-form" style="margin-top:10px">'+
+        '<div class="field" style="min-width:220px"><label>பள்ளி ID</label><input type="text" id="restSchoolId" placeholder="எ.கா. xlainu9fmul8a1f6"></div>'+
+        '<div class="field" style="flex:1;min-width:220px"><label>பள்ளியின் பெயர்</label><input type="text" id="restSchoolName" placeholder="St. Mary\'s Tamil Maha Vidyalaya, Bambalapitiya"></div>'+
+        '<div class="field" style="min-width:100px"><label>ஆண்டு</label><input type="text" id="restSchoolYear" placeholder="'+String(new Date().getFullYear())+'"></div>'+
+        '<button class="btn-primary" id="btnRestoreSchool">மீட்டமை</button>'+
+      '</div>'+
+      '<div class="error-msg" id="restoreMsg" style="margin-top:6px"></div>'+
+    '</div>';
 
   document.getElementById('btnLogoutSA').onclick=function(){
     if(state.schoolsUnsub){ state.schoolsUnsub(); state.schoolsUnsub=null; }
@@ -1394,6 +1447,113 @@ function renderSuperAdmin(app){
       db.collection('schools').doc(id).delete().catch(function(err){ alert('நீக்க முடியவில்லை: '+err.message); });
     };
   });
+  app.querySelectorAll('[data-acc-start]').forEach(function(inp){
+    inp.onchange=function(){
+      db.collection('schools').doc(inp.getAttribute('data-acc-start')).update({accessStart: inp.value || null})
+        .catch(function(err){ alert('சேமிக்க முடியவில்லை: '+err.message); });
+    };
+  });
+  app.querySelectorAll('[data-acc-end]').forEach(function(inp){
+    inp.onchange=function(){
+      db.collection('schools').doc(inp.getAttribute('data-acc-end')).update({accessEnd: inp.value || null})
+        .catch(function(err){ alert('சேமிக்க முடியவில்லை: '+err.message); });
+    };
+  });
+  app.querySelectorAll('[data-check]').forEach(function(btn){
+    btn.onclick=function(){
+      var id = btn.getAttribute('data-check');
+      var name = btn.getAttribute('data-name') || id;
+      var msgEl = document.getElementById('checkMsg');
+      msgEl.style.color='';
+      msgEl.textContent = '"'+name+'" — தரவு சரிபார்க்கப்படுகிறது…';
+      db.collection('schools').doc(id).collection('departments').get().then(function(snap){
+        var deptCount = 0, critCount = 0, indCount = 0, scoredCount = 0, entryCount = 0, photoCount = 0;
+        snap.forEach(function(doc){
+          deptCount++;
+          var data = doc.data();
+          (data.criteria||[]).forEach(function(c){
+            critCount++;
+            (c.indicators||[]).forEach(function(ind){
+              indCount++;
+              if(ind.score && ind.score>0) scoredCount++;
+              (ind.entries||[]).forEach(function(e){
+                entryCount++;
+                if(e.imageData) photoCount++;
+              });
+            });
+          });
+        });
+        msgEl.style.color = (deptCount>0 && (scoredCount>0 || entryCount>0)) ? 'var(--sage)' : '';
+        msgEl.textContent = '"'+name+'" (ID: '+id+') — துறைகள்: '+deptCount+' · நியதிகள்: '+critCount+' · சுட்டிகள்: '+indCount+
+          ' · மதிப்பீடு செய்யப்பட்டவை: '+scoredCount+' · சான்றுப் பதிவுகள்: '+entryCount+' · படங்கள்: '+photoCount;
+      }).catch(function(err){
+        msgEl.style.color='';
+        msgEl.textContent = 'சரிபார்க்க முடியவில்லை: '+err.message;
+      });
+    };
+  });
+  var mapBtn = document.getElementById('btnLoadMap');
+  if(mapBtn){
+    mapBtn.onclick=function(){
+      mapBtn.disabled = true;
+      mapBtn.textContent = 'ஏற்றப்படுகிறது…';
+      db.collection('userSchoolMap').get().then(function(snap){
+        var rows = [];
+        snap.forEach(function(doc){ rows.push(Object.assign({uid:doc.id}, doc.data())); });
+        rows.sort(function(a,b){ return (a.email||'').localeCompare(b.email||''); });
+        var schoolNameById = {};
+        (state.schools||[]).forEach(function(s){ schoolNameById[s.id]=s.name; });
+        var resEl = document.getElementById('mapResult');
+        resEl.innerHTML = rows.length ?
+          '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பள்ளி</th><th>பள்ளி ID</th><th>பங்கு (role)</th></tr></thead><tbody>'+
+          rows.map(function(r){
+            return '<tr><td>'+escapeHtml(r.email||r.uid)+'</td><td>'+escapeHtml(schoolNameById[r.schoolId]||'(தெரியவில்லை)')+'</td>'+
+              '<td style="font-size:.72rem;color:var(--ink-soft)">'+escapeHtml(r.schoolId||'')+'</td><td>'+escapeHtml(r.role||'')+'</td></tr>';
+          }).join('')+'</tbody></table>'
+          : '<p class="hint">பயனர்-பள்ளி நியமிப்புகள் எதுவும் இல்லை.</p>';
+        mapBtn.style.display='none';
+      }).catch(function(err){
+        document.getElementById('mapResult').innerHTML = '<p class="error-msg">ஏற்ற முடியவில்லை: '+escapeHtml(err.message)+'</p>';
+        mapBtn.disabled = false;
+        mapBtn.textContent = 'பயனர்-பள்ளி நியமிப்புகளைக் காட்டு';
+      });
+    };
+  }
+  var restBtn = document.getElementById('btnRestoreSchool');
+  if(restBtn){
+    restBtn.onclick=function(){
+      var id = document.getElementById('restSchoolId').value.trim();
+      var name = document.getElementById('restSchoolName').value.trim();
+      var year = document.getElementById('restSchoolYear').value.trim() || String(new Date().getFullYear());
+      var msgEl = document.getElementById('restoreMsg');
+      msgEl.style.color='';
+      if(!id || !name){ msgEl.textContent='பள்ளி ID மற்றும் பெயர் இரண்டையும் இடவும்.'; return; }
+      msgEl.textContent = 'சரிபார்க்கப்படுகிறது…';
+      db.collection('schools').doc(id).get().then(function(existing){
+        if(existing.exists){
+          msgEl.textContent = 'இந்த ID இல் ஏற்கெனவே ஒரு பள்ளி ஆவணம் உள்ளது — மேலே உள்ள பட்டியலில் "'+(existing.data().name||id)+'" எனக் காணலாம். ஏற்கெனவே உள்ளதை மேலெழுத இந்தக் கருவி பயன்படுத்தப்படாது.';
+          return;
+        }
+        return db.collection('schools').doc(id).set({
+          name: name,
+          year: year,
+          logoData: null,
+          createdAt: new Date().toISOString(),
+          createdBy: state.user ? state.user.email : '',
+          restoredAt: new Date().toISOString()
+        }).then(function(){
+          msgEl.style.color='var(--sage)';
+          msgEl.textContent = '"'+name+'" மீட்டமைக்கப்பட்டது ✓ — அதன் கீழுள்ள துறைத் தரவு இழப்பின்றி அப்படியே உள்ளது. மேலே உள்ள பட்டியலில் இப்போது தோன்றும்; "தரவு சரிபார்" பொத்தானை அழுத்தி உறுதி செய்யவும்.';
+          document.getElementById('restSchoolId').value='';
+          document.getElementById('restSchoolName').value='';
+          document.getElementById('restSchoolYear').value='';
+        });
+      }).catch(function(err){
+        msgEl.style.color='';
+        msgEl.textContent = 'மீட்டமைக்க முடியவில்லை: '+err.message;
+      });
+    };
+  }
 }
 
 /* ---- shared department (data-entry) rendering ---- */
@@ -1721,37 +1881,26 @@ function renderAdminOverview(app){
 
 /* ---- school setup / user management ---- */
 
-function reportIndicatorHtml(ind){
+function reportIndicatorSummaryHtml(ind){
   var scoreTxt = (ind.score && ind.score>0) ? SCORE_LABELS[ind.score] : 'மதிப்பிடப்படவில்லை';
   var calcHtml = ind.calc ? calcTableHtml(ind) : '';
-  var entries = (ind.entries || []).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
-  var entriesHtml = entries.length ? entries.map(function(e){
-    var img = e.imageData
-      ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
-      : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
-    return '<div class="report-entry">'+img+
-      '<div class="report-ind-body">'+
-        '<div style="font-size:.78rem;color:var(--gold);font-weight:600;margin-bottom:3px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
-        '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
-      '</div>'+
-    '</div>';
-  }).join('') : (ind.calc ? '' : '<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>');
+  var entryCount = (ind.entries||[]).length;
   return '<div class="report-ind">'+
     '<div class="report-ind-title">'+escapeHtml(ind.title)+'</div>'+
     (ind.calc ? '' : '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>')+
     calcHtml+
-    entriesHtml+
+    (entryCount ? '<p class="hint">சான்றுப் பதிவுகள்: '+entryCount+' (படங்கள் கீழே "சான்றுப் படங்கள்" பிரிவில் உள்ளன)</p>' : (ind.calc?'':'<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>'))+
   '</div>';
 }
 
-function reportDeptHtml(deptId){
+function reportDeptSummaryHtml(deptId){
   var dept = deptById(deptId);
   var dData = state.deptData[deptId];
   if(!dData) return '';
   var body = dData.criteria.map(function(c, i){
     return '<div class="report-crit-block">'+
       '<div class="report-crit-title">நியதி '+(i+1)+' — '+escapeHtml(c.title)+'</div>'+
-      c.indicators.map(reportIndicatorHtml).join('')+
+      c.indicators.map(reportIndicatorSummaryHtml).join('')+
     '</div>';
   }).join('');
   return '<section style="margin-bottom:34px">'+
@@ -1760,7 +1909,7 @@ function reportDeptHtml(deptId){
   '</section>';
 }
 
-function reportSingleCritHtml(deptId, critId){
+function reportSingleCritSummaryHtml(deptId, critId){
   var dept = deptById(deptId);
   var dData = state.deptData[deptId];
   if(!dData) return '';
@@ -1771,9 +1920,63 @@ function reportSingleCritHtml(deptId, critId){
     '<h2 style="color:var(--maroon-deep)">'+escapeHtml(dept.name)+'</h2>'+
     '<div class="report-crit-block">'+
       '<div class="report-crit-title">நியதி '+(idx+1)+' — '+escapeHtml(c.title)+'</div>'+
-      c.indicators.map(reportIndicatorHtml).join('')+
+      c.indicators.map(reportIndicatorSummaryHtml).join('')+
     '</div>'+
   '</section>';
+}
+
+/* Flat list of every photo-evidence entry (across the criteria/indicators in
+   scope), each carrying its department/criteria/indicator label — used to
+   lay the evidence photos out strictly two-per-A4-page below. */
+function collectPhotoEntries(deptIds, scope){
+  var items = [];
+  deptIds.forEach(function(deptId){
+    var dept = deptById(deptId);
+    var dData = state.deptData[deptId];
+    if(!dept || !dData) return;
+    var critList = dData.criteria;
+    if(scope.type==='crit'){ critList = critList.filter(function(c){ return c.id===scope.critId; }); }
+    critList.forEach(function(c){
+      (c.indicators||[]).forEach(function(ind){
+        var entries = (ind.entries||[]).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+        entries.forEach(function(e){
+          items.push({deptName:dept.name, critTitle:c.title, indTitle:ind.title, entry:e});
+        });
+      });
+    });
+  });
+  return items;
+}
+
+function reportEntryBlockHtml(item){
+  var e = item.entry;
+  var img = e.imageData
+    ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
+    : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
+  return '<div class="report-entry">'+
+    img+
+    '<div class="report-ind-body">'+
+      '<div class="report-ind-title">'+escapeHtml(item.indTitle)+'</div>'+
+      '<div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:4px">'+escapeHtml(item.critTitle)+'</div>'+
+      '<div style="font-size:.8rem;color:var(--gold);font-weight:600;margin-bottom:4px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
+      '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
+/* Exactly two photo+detail entries per A4 printed sheet, no blank pages:
+   entries are grouped in pairs, and only a page that actually holds an
+   entry gets a page-break after it (the very last page never forces one). */
+function reportPhotoPagesHtml(items){
+  if(!items.length) return '<p class="hint">சான்றுப் படங்கள் எதுவும் இடப்படவில்லை.</p>';
+  var pages = [];
+  for(var i=0;i<items.length;i+=2){ pages.push(items.slice(i,i+2)); }
+  return '<div class="report-photo-section">'+
+    '<h2 style="color:var(--maroon-deep)">சான்றுப் படங்கள்</h2>'+
+    pages.map(function(pg){
+      return '<div class="report-page">'+pg.map(reportEntryBlockHtml).join('')+'</div>';
+    }).join('')+
+  '</div>';
 }
 
 function renderEvidenceReport(app, scope){
@@ -1791,8 +1994,9 @@ function renderEvidenceReport(app, scope){
   if(scope.type==='crit') subtitle = deptById(scope.deptId).name + ' — ஒரு நியதிக்கான சான்று அறிக்கை';
 
   var bodyHtml;
-  if(scope.type==='crit') bodyHtml = reportSingleCritHtml(scope.deptId, scope.critId);
-  else bodyHtml = deptIds.map(reportDeptHtml).join('');
+  if(scope.type==='crit') bodyHtml = reportSingleCritSummaryHtml(scope.deptId, scope.critId);
+  else bodyHtml = deptIds.map(reportDeptSummaryHtml).join('');
+  bodyHtml += reportPhotoPagesHtml(collectPhotoEntries(deptIds, scope));
 
   app.innerHTML =
     topbarHtml(
@@ -1872,9 +2076,40 @@ function renderSchoolSetup(app){
     '<div class="error-msg" id="setupErr"></div>'+
     '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பங்கு</th><th></th></tr></thead>'+
     '<tbody id="usersTbody"><tr><td colspan="3" style="color:var(--ink-soft)">ஏற்றப்படுகிறது…</td></tr></tbody></table>'+
+    '<div class="criterion" style="margin-top:24px">'+
+      '<div class="criterion-head"><span class="crit-num">மீட்பு கருவி</span></div>'+
+      '<p class="hint" style="margin:0 0 10px">பள்ளிகள் பிரிக்கப்படுவதற்கு முன் ஒரு துறையில் பதிவு செய்யப்பட்ட தகவல் இந்தப் பள்ளியில் தற்போது தெரியவில்லை எனில், அந்தத் துறையைத் தெரிவு செய்து கீழுள்ள பொத்தானை அழுத்தவும் — பழைய இடத்தில் இன்னும் இருக்கும் அந்தத் துறையின் தரவை இந்தப் பள்ளிக்குள் மீண்டும் கொண்டு வரும். <strong>இது இந்தத் துறையில் இப்போது இந்தப் பள்ளியில் உள்ளதை நீக்கி, பழைய தரவால் மாற்றும்</strong> — எனவே தேவையான துறைக்கு மட்டும் பயன்படுத்தவும்.</p>'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'+
+        '<div class="field" style="min-width:260px"><label>துறை</label><select id="recoverDept" class="role-select">'+
+          DEPARTMENTS.map(function(d){ return '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>'; }).join('')+
+        '</select></div>'+
+        '<button type="button" class="btn-outline" id="btnRecoverDept">இந்தத் துறையின் பழைய தரவைக் கொண்டுவா</button>'+
+      '</div>'+
+      '<div class="error-msg" id="recoverMsg"></div>'+
+    '</div>'+
     '<footer class="app-footer">புதிதாக உருவாக்கிய மின்னஞ்சல் மற்றும் தற்காலிகக் கடவுச்சொல்லை அந்தந்தத் துறைப் பொறுப்பாளரிடம் நேரடியாக வழங்கவும்.</footer>';
 
   document.getElementById('btnBackAdmin').onclick=function(){ state.view='admin'; renderApp(); };
+
+  document.getElementById('btnRecoverDept').onclick=function(){
+    var deptId = document.getElementById('recoverDept').value;
+    var dept = deptById(deptId);
+    var msgEl = document.getElementById('recoverMsg');
+    msgEl.textContent='';
+    if(!confirm('"'+dept.name+'" துறையில் இந்தப் பள்ளியில் தற்போது உள்ள தரவு நீக்கப்பட்டு, பழைய இடத்தில் இருக்கும் தரவால் மாற்றப்படும். தொடரவா?')) return;
+    db.collection('departments').doc(deptId).get().then(function(doc){
+      if(!doc.exists) throw new Error('இந்தத் துறைக்கான பழைய தரவு எதுவும் கிடைக்கவில்லை.');
+      return deptsColRef().doc(deptId).set(doc.data());
+    }).then(function(){
+      unsubscribeDept(deptId);
+      delete state.deptData[deptId];
+      msgEl.style.color='var(--sage)';
+      msgEl.textContent='"'+dept.name+'" துறையின் பழைய தரவு கொண்டு வரப்பட்டது ✓';
+    }).catch(function(err){
+      msgEl.style.color='';
+      msgEl.textContent = err.message;
+    });
+  };
 
   function saveSchoolMeta(){
     schoolDocRef().set(school, {merge:true}).then(function(){
@@ -1938,7 +2173,10 @@ function renderSchoolSetup(app){
         var targetUid = sel.getAttribute('data-role-for');
         usersColRef().doc(targetUid).update({role:sel.value}).then(function(){
           var u = state.usersCache.find(function(x){ return x.uid===targetUid; });
-          if(u) u.role = sel.value;
+          if(u){
+            u.role = sel.value;
+            userSchoolMapRef(targetUid).set({schoolId:state.schoolId, role:sel.value, email:u.email}).catch(function(){});
+          }
         }).catch(function(err){ alert('பங்கை மாற்ற முடியவில்லை: '+err.message); });
       };
     });
@@ -1953,7 +2191,9 @@ function renderSchoolSetup(app){
       btn.onclick=function(){
         var targetUid = btn.getAttribute('data-uid');
         if(!confirm('இந்தப் பயனரின் அணுகல் பங்கை நீக்கவா? (இது Firebase Authentication இலிருந்து கணக்கையே நீக்காது — தேவைப்பட்டால் அதை Firebase console இல் தனியாக நீக்க வேண்டும்.)')) return;
-        usersColRef().doc(targetUid).delete().then(loadUsers).catch(function(err){ alert(err.message); });
+        usersColRef().doc(targetUid).delete().then(function(){
+          return userSchoolMapRef(targetUid).delete().catch(function(){});
+        }).then(loadUsers).catch(function(err){ alert(err.message); });
       };
     });
   }
@@ -1971,6 +2211,8 @@ function renderSchoolSetup(app){
     secAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
       var newUid = cred.user.uid;
       return usersColRef().doc(newUid).set({email:email, role:role, uid:newUid}).then(function(){
+        return userSchoolMapRef(newUid).set({schoolId:state.schoolId, role:role, email:email});
+      }).then(function(){
         return secAuth.signOut();
       });
     }).then(function(){
