@@ -131,7 +131,7 @@
     display:flex; gap:10px; align-items:flex-start; border-top:1px dashed var(--line); padding-top:10px;
   }
   .ind-row:first-child{ border-top:none; padding-top:0; }
-  .ind-num{ font-size:.78rem; color:var(--ink-soft); padding-top:10px; width:20px; flex:0 0 auto; }
+  .ind-num{ font-size:.78rem; font-weight:600; color:var(--maroon-deep); padding-top:11px; min-width:64px; flex:0 0 auto; white-space:nowrap; text-align:right; }
   .ind-main{ flex:1; display:flex; flex-direction:column; gap:8px; min-width:0; }
   .ind-title{ font-weight:500; }
   .ind-controls{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
@@ -219,6 +219,7 @@
   .report-ind:first-child{ border-top:none; }
   .report-ind-body{ flex:1; min-width:0; }
   .report-ind-title{ font-weight:600; margin-bottom:4px; }
+  .report-ind-num{ color:var(--maroon-deep); font-weight:700; margin-right:4px; }
   .report-ind-note{ font-size:.88rem; color:var(--ink-soft); white-space:pre-wrap; }
   .report-print-header{ display:none; }
 
@@ -2149,9 +2150,9 @@ function reportIndicatorSummaryHtml(ind, refNum){
   var scoreTxt = (ind.score && ind.score>0) ? SCORE_LABELS[ind.score] : 'மதிப்பிடப்படவில்லை';
   var calcHtml = ind.calc ? calcTableHtml(ind) : '';
   var entryCount = (ind.entries||[]).length;
-  var titleTxt = (refNum!=null ? (refNum+'  ') : '') + ind.title;
+  var numHtml = (refNum!=null) ? '<span class="report-ind-num">'+escapeHtml(refNum)+'</span> ' : '';
   return '<div class="report-ind">'+
-    '<div class="report-ind-title">'+escapeHtml(titleTxt)+'</div>'+
+    '<div class="report-ind-title">'+numHtml+escapeHtml(ind.title)+'</div>'+
     (ind.calc ? '' : '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>')+
     calcHtml+
     (entryCount ? '<p class="hint">சான்றுப் பதிவுகள்: '+entryCount+' (படங்கள் கீழே "சான்றுப் படங்கள்" பிரிவில் உள்ளன)</p>' : (ind.calc?'':'<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>'))+
@@ -2230,7 +2231,7 @@ function reportEntryBlockHtml(item){
      per indicator) was just repetitive clutter. */
   return '<div class="report-entry">'+
     '<div class="report-ind-header">'+
-      '<div class="report-ind-title">'+escapeHtml((item.indRef?item.indRef+'  ':'')+item.indTitle)+'</div>'+
+      '<div class="report-ind-title">'+(item.indRef?'<span class="report-ind-num">'+escapeHtml(item.indRef)+'</span> ':'')+escapeHtml(item.indTitle)+'</div>'+
     '</div>'+
     img+
     '<div class="report-ind-body" style="margin-top:10px">'+
