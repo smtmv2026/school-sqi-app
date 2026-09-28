@@ -1105,11 +1105,13 @@ function subscribeSchoolsList(onChange){
   });
 }
 
-function createSchool(name){
+function createSchool(name, year, accessStart, accessEnd){
   var schoolId = uid();
   return db.collection('schools').doc(schoolId).set({
     name: name,
-    year: String(new Date().getFullYear()),
+    year: year || String(new Date().getFullYear()),
+    accessStart: accessStart || null,
+    accessEnd: accessEnd || null,
     logoData: null,
     createdAt: new Date().toISOString(),
     createdBy: state.user ? state.user.email : ''
@@ -1367,13 +1369,18 @@ function renderSuperAdmin(app){
     '<div class="topbar-actions"><button class="btn-ghost" id="btnLogoutSA">← வெளியேறு</button></div></div>'+
     '<div class="dept-header"><h1>பள்ளிகள்</h1>'+
     '<p class="dept-sub">ஒவ்வொரு பள்ளியும் அதற்கே உரிய தனித்தனி தரவுத்தளத்தை (துறைகள், சான்றுகள், பயனர்கள்) கொண்டிருக்கும்.</p></div>'+
-    '<div class="add-user-form">'+
-      '<div class="field" style="flex:1;min-width:260px"><label>புதிய பள்ளியின் பெயர்</label><input type="text" id="newSchoolName" placeholder="எ.கா. St. Mary\'s Tamil Maha Vidyalaya"></div>'+
-      '<button class="btn-primary" id="btnCreateSchool">+ புதிய பள்ளியை உருவாக்கு</button>'+
+    '<div class="pins-panel">'+
+      '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">புதிய பள்ளியைச் சேர்</div>'+
+      '<p class="hint" style="margin:0 0 14px">பெயரை இட்டு <strong>சேமி</strong> அழுத்தி புதிய பள்ளியை உருவாக்கவும். அணுகல் திகதிகள் விரும்பினால் மட்டும்; காலியாக விட்டால் எப்போதும் அணுகலாம்.</p>'+
+      '<div class="add-user-form">'+
+        '<div class="field" style="flex:1;min-width:240px"><label>பள்ளியின் பெயர்</label><input type="text" id="newSchoolName" placeholder="எ.கா. St. Mary\'s Tamil Maha Vidyalaya"></div>'+
+        '<div class="field" style="min-width:90px"><label>ஆண்டு</label><input type="text" id="newSchoolYear" placeholder="'+String(new Date().getFullYear())+'"></div>'+
+        '<div class="field" style="min-width:150px"><label>அணுகல் தொடக்கம் (விரும்பினால்)</label><input type="date" id="newSchoolAccStart"></div>'+
+        '<div class="field" style="min-width:150px"><label>அணுகல் முடிவு (விரும்பினால்)</label><input type="date" id="newSchoolAccEnd"></div>'+
+        '<button class="btn-primary" id="btnCreateSchool">சேமி</button>'+
+      '</div>'+
+      '<div class="error-msg" id="saErr" style="margin-top:8px"></div>'+
     '</div>'+
-    '<div class="error-msg" id="saErr"></div>'+
-    '<div class="setup-notice">இந்தச் செயலி முன்பு St. Mary\'s Tamil Maha Vidyalaya ஒரு பள்ளிக்காக மட்டும் பயன்பட்டிருந்தது. அதன் ஏற்கெனவே உள்ள தரவை (துறைகள், பயனர்கள், கற்றல் கற்பித்தல் மேற்பார்வைப் பதிவுகள்) இழக்காமல் ஒரு தனிப் பள்ளியாக இங்கு கொண்டு வர கீழுள்ள பொத்தானை அழுத்தவும் — <strong>ஒரே ஒரு தடவை மட்டும்</strong> அழுத்தவும் (இது பழைய தரவை நீக்காது, ஒவ்வொரு முறையும் புதிதாக நகலெடுக்கும்).</div>'+
-    '<p><button type="button" class="btn-outline" id="btnMigrate">St. Mary\'s இன் முன்பிருந்த தரவைக் கொண்டுவா</button></p>'+
     '<table class="setup-table"><thead><tr><th>பள்ளி</th><th>ஆண்டு</th><th>அணுகல் தொடக்கம்</th><th>அணுகல் முடிவு</th><th>ID</th><th></th></tr></thead>'+
     '<tbody id="schoolsTbody">'+
       (state.schools.length ? state.schools.map(function(s){
@@ -1388,10 +1395,11 @@ function renderSuperAdmin(app){
     '</tbody></table>'+
     '<p class="hint">அணுகல் தொடக்கம் / முடிவு திகதிகளை காலியாக விட்டால் அப்பள்ளிக்கு காலவரம்பு இல்லாமல் எப்போதும் அணுகலாம். இத்திகதிகள் அதிபர் (Superadmin) கணக்கிற்குப் பொருந்தாது — அது எப்போதும் அனைத்துப் பள்ளிகளையும் அணுகும்.</p>'+
     '<div class="error-msg" id="checkMsg" style="margin-top:6px"></div>'+
-    '<div class="setup-notice">'+
-      '<strong>பயனர் → பள்ளி நியமிப்புகள் (கண்டறிதல் கருவி):</strong> ஒரு பயனர் எந்தப் பள்ளியில், எந்தப் பங்குடன் (role) இணைக்கப்பட்டுள்ளார் என்பதை இங்கு பார்க்கலாம் — smtmv2026 போன்ற கணக்குகள் தவறான பள்ளியில் தரவு சேர்க்கிறதா என ஒப்பிட்டுப் பார்க்க இது உதவும்.'+
-      '<p><button type="button" class="btn-outline" id="btnLoadMap">பயனர்-பள்ளி நியமிப்புகளைக் காட்டு</button></p>'+
-      '<div id="mapResult"></div>'+
+    '<div class="pins-panel">'+
+      '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">பயனர் → பள்ளி நியமிப்புகள்</div>'+
+      '<p class="hint" style="margin:0 0 12px">ஒரு பயனர் எந்தப் பள்ளியில், எந்தப் பங்குடன் (role) இணைக்கப்பட்டுள்ளார் என்பதை இங்கு பார்க்கலாம்.</p>'+
+      '<button type="button" class="btn-outline" id="btnLoadMap">பயனர்-பள்ளி நியமிப்புகளைக் காட்டு</button>'+
+      '<div id="mapResult" style="margin-top:10px"></div>'+
     '</div>'+
     '<div class="pins-panel">'+
       '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">பள்ளி விபரங்களைச் சேர் / திருத்து</div>'+
@@ -1418,30 +1426,22 @@ function renderSuperAdmin(app){
   document.getElementById('btnCreateSchool').onclick=function(){
     var nameEl = document.getElementById('newSchoolName');
     var name = nameEl.value.trim();
+    var year = document.getElementById('newSchoolYear').value.trim();
+    var accStart = document.getElementById('newSchoolAccStart').value || null;
+    var accEnd = document.getElementById('newSchoolAccEnd').value || null;
     var errEl = document.getElementById('saErr');
+    var btn = document.getElementById('btnCreateSchool');
     errEl.textContent='';
     if(!name){ errEl.textContent='பள்ளியின் பெயரை இடவும்.'; return; }
-    createSchool(name).then(function(schoolId){
+    btn.disabled = true;
+    createSchool(name, year, accStart, accEnd).then(function(schoolId){
       nameEl.value='';
+      document.getElementById('newSchoolYear').value='';
+      document.getElementById('newSchoolAccStart').value='';
+      document.getElementById('newSchoolAccEnd').value='';
       enterSchoolAsSuperAdmin(schoolId);
-    }).catch(function(err){ errEl.textContent = err.message; });
+    }).catch(function(err){ errEl.textContent = err.message; btn.disabled = false; });
   };
-  var migBtn = document.getElementById('btnMigrate');
-  if(migBtn){
-    migBtn.onclick=function(){
-      if(!confirm('முன்பிருந்த தரவை முதல் பள்ளியாக நகலெடுக்கவா? இது சில நொடிகள் ஆகலாம்.')) return;
-      migBtn.disabled = true;
-      migBtn.textContent = 'நகலெடுக்கப்படுகிறது…';
-      migrateOldDataIntoNewSchool().then(function(schoolId){
-        alert('முடிந்தது! பழைய தரவு முதல் பள்ளியாக நகலெடுக்கப்பட்டது.');
-        enterSchoolAsSuperAdmin(schoolId);
-      }).catch(function(err){
-        alert('நகலெடுப்பதில் சிக்கல்: '+err.message);
-        migBtn.disabled = false;
-        migBtn.textContent = 'முன்பிருந்த தரவை முதல் பள்ளியாகக் கொண்டுவா';
-      });
-    };
-  }
   app.querySelectorAll('[data-open]').forEach(function(btn){
     btn.onclick=function(){ enterSchoolAsSuperAdmin(btn.getAttribute('data-open')); };
   });
