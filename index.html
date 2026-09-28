@@ -222,20 +222,22 @@
   .report-ind-note{ font-size:.88rem; color:var(--ink-soft); white-space:pre-wrap; }
   .report-print-header{ display:none; }
 
-  /* ---- evidence photo pages: exactly two photo+detail entries per A4 sheet ---- */
+  /* ---- evidence photo pages: exactly two photo+detail entries per A4 sheet,
+     left-aligned text at full sheet width, no forced blank space/pages ---- */
   .report-photo-section{ margin-top:10px; }
-  .report-page{ display:flex; flex-direction:column; justify-content:center; gap:28px; min-height:9.5in; padding:6px 0; }
-  .report-entry{ display:flex; flex-direction:column; align-items:center; gap:10px; flex:1 1 0; justify-content:center; page-break-inside:avoid; }
-  .report-img, .report-img-empty{ width:500px; max-width:100%; height:350px; flex:0 0 auto; border-radius:5px; border:1px solid var(--line); }
+  .report-page{ padding:4px 0; }
+  .report-entry{ page-break-inside:avoid; margin-bottom:26px; text-align:left; }
+  .report-entry:last-child{ margin-bottom:0; }
+  .report-img, .report-img-empty{ display:block; width:500px; max-width:100%; height:350px; margin:0 0 12px; border-radius:5px; border:1px solid var(--line); }
   .report-img{ object-fit:cover; }
   .report-img-empty{ display:flex; align-items:center; justify-content:center; background:#F2ECDD; color:var(--ink-soft); font-size:.85rem; text-align:center; padding:6px; }
-  .report-page .report-ind-body{ text-align:center; max-width:500px; }
   @media print{
+    @page{ size:A4; margin:0.6in 0.6in 0.6in 0.75in; }
     .report-print-header{ display:block; text-align:center; margin-bottom:20px; }
     .report-crit-block{ break-inside:avoid; }
     .report-ind{ break-inside:avoid; }
     .report-photo-section > h2{ break-before:page; }
-    .report-page{ break-after:page; break-inside:avoid; min-height:0; }
+    .report-page{ break-after:page; }
     .report-page:last-child{ break-after:auto; }
     .report-entry{ break-inside:avoid; }
   }
