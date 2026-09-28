@@ -194,8 +194,13 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "252434026371",
   appId: "1:252434026371:web:8ff8f4fa814b3a35d3f0b6"
 };   // School SQI செயலியின் அதே Firebase திட்டம்
-const SCHOOL_ID   = "";         // காலியாயின் தரவு lt_teachers, lt_supervisions மேல்நிலைத் தொகுப்புகளில்
-const SCHOOL_NAME = "St. Mary's Tamil Maha Vidyalaya, Bambalapitiya";
+/* பல பாடசாலைகள் இந்த ஒரே கருவியைப் பயன்படுத்தும்போது, ஒவ்வொரு பாடசாலையின் தரவும்
+   தனித்தனியாகப் பிரிக்கப்பட வேண்டும் என்பதற்காக, School SQI முதன்மைப் பயன்பாடு இந்தப்
+   பக்கத்தைத் திறக்கும்போது ?school=<பாடசாலை ID> எனும் URL அளவுருவைச் சேர்த்தே திறக்கும்.
+   அந்த ID கிடைத்தால் தரவு schools/<ID>/lt_teachers, schools/<ID>/lt_supervisions இல்
+   சேமிக்கப்படும்; கிடைக்காவிட்டால் (பழைய இணைப்பு) பழைய மேல்நிலைத் தொகுப்புகளையே பயன்படுத்தும். */
+const SCHOOL_ID   = new URLSearchParams(location.search).get('school') || "";
+let SCHOOL_NAME = "St. Mary's Tamil Maha Vidyalaya, Bambalapitiya";
 const REQUIRE_LOGIN = true;     // Firebase mode இல் உள்நுழைவு தேவை
 /* ================================================================ */
 const CRIT = [{"code": "2.1", "title": "முறையான பாடத்திட்டமிடலும் சிறப்பான பாடப் பிரவேசமும்", "items": ["பாடக்கொள்கை வருடாந்த/ தவணை/ வாரந்த/ தினசரி வேலைத்திட்டத்தை தயாரித்து அனுமதி பெற்று வைத்திருத்தல்.", "அத்திட்டத்தில் பாடத்துக்குரிய நோக்கம் மற்றும் தேர்ச்சிகளை விளக்கமாகக் காட்டியிருத்தல்.", "விடய உள்ளடக்கத்தின் பிழையற்ற தன்மையும் போதுமான அளவும்.", "மாணவரின் பல்வகைத்தன்மை மற்றும் கற்றல் பாங்கு தொடர்பில் அவதானம் செலுத்தி பல்வேறு கற்றல் முறைகளையும் உபாயங்களையும் உள்ளடக்கியிருத்தல்.", "பொருத்தமான கற்பித்தல் உபகரணங்கள், மாணவர்களுக்குப் பொருத்தமான சிறந்த கற்றல் சந்தர்ப்பங்கள் தொடர்பில் கவனம் செலுத்தியிருத்தல்.", "மகிழ்ச்சிகரமான கற்றல் சூழலை ஏற்படுத்தியிருப்பதோடு கற்றல் கற்பித்தல் வளங்களை வகுப்பறையில் காட்சிப்படுத்தியிருத்தல்.", "கற்றல் அனுபவங்களை நாளாந்த வாழ்க்கையுடன் தொடர்புபடுத்தும் வகையில் கவனம் செலுத்தியிருத்தல்.", "செயற்பாடுகளை உள்ளடக்கிய கற்றல் கற்பித்தல் செயல்முறையை தயார்படுத்தி வைத்திருத்தல்.", "மனதைக்கவரும் வகையில் பாடத்தினை ஆரம்பித்தல்."]}, {"code": "2.2", "title": "உயர் மட்டத்திலான பாடவிருத்தி", "items": ["திட்டத்திற்கமைய படிப்படியாக பாடம் விருத்தி செய்யப்படுகின்றது.", "பாடநூலுக்கு மேலதிகமாக பாடத்துக்கு பொருந்தும் வகையில் ஒப்படைகள்/ செயற்பாடுகள்/ வளங்கள் மற்றும் கற்றல் துணைச்சாதனங்களை வினைத்திறனுடன் உச்ச அளவில் பயன்படுத்தியிருத்தல்.", "மாணவர்களைத் தர்க்கரீதியில் தொழிற்பட ஊக்குவித்தல்/ ஈடுபடுத்துதல் மற்றும் வினாக்களைத் தொடுப்பதற்கு மாணவர்களைத் தூண்டுதல்.", "மாணவர்களின் வெவ்வேறு அறிவு மட்டங்களுக்குப் பொருந்தும் வகையில் உதாரணங்களையும் நோக்கத்துடன் கூடிய வினாக்களையும் ஒப்படைகளையும் முன்வைத்தல்.", "மாணவர் செயற்பாட்டு கற்றற் பாங்கைப் பின்பற்றி மாணவர்களின் வெளிப்பாடுகளைப் பெற்று பாடத்தை விருத்தி செய்தல்.", "மாணவர் - மாணவர், மாணவர் - ஆசிரியர் இடைத்தொடர்புகள் ஏற்படும் வகையில் குழுச்செயற்பாடுகள் மூலம் கற்றலை நெறிப்படுத்துதல்.", "வேறுபட்ட திறன்கள், ஆக்கத்திறன் என்பன விருத்தியாகும் வகையில் செயற்பாடுகளில் ஈடுபடுத்தல்.", "சுயகற்றலுக்கு ஈடுபடுத்தலும் தேவையான உதவிகளை வழங்கலும்.", "யதார்த்த வாழ்க்கை அனுபவங்களைப் பெற்றுக் கொடுக்கும் வகையில் பாடத்தினைப் பொருத்தப்பாடடையச் செய்தல்."]}, {"code": "2.3", "title": "மதிப்பிடல்", "items": ["வெளிப்பாடுகளை முன்வைத்தலுக்கு சந்தர்ப்பம் வழங்குதலும் ஊக்குவித்தலும் சரிசெய்தலும்.", "பாட முடிவில் கற்ற விடயங்களின் சாராம்சத்தை மீள வலியுறுத்தி உறுதிப்படுத்துதல்.", "பொருத்தமான மதிப்பீடு/ அளவீட்டு முறையைப் பாவித்தலும் அதனூடாக மாணவர்களின் பலத்தையும் (strength); அபிவிருத்திக்கான சந்தர்ப்பங்களையும் இனங்காணுதல்.", "முன்னூட்டல், பின்னூட்டலினை மேற்கொள்ளல்."]}, {"code": "2.4", "title": "தனிநபர் பொறுப்பும் ஆளுமையும்", "items": ["மாணவர்களுடனும் ஏனைய ஆளணியினருடனும் பொருத்தமான இடைத்தொடர்புகளைப் பேணுவதோடு பாடசாலையின் ஏனைய செயற்பாடுகளுக்கு சிறந்த பங்களிப்பினை வழங்குதல்.", "குறைவாக லீவு எடுத்தலும் அவ்வாறு லீவு பெறும் சந்தர்ப்பங்களில் ஒப்படைகளையும் செயற்பாடுகளையும் மாணவர்களுக்கு வழங்கியிருத்தலும்.", "உரிய நேரத்துக்குப் பாடசாலைக்கு சமூகமளித்தல், உரிய நேரத்தில் வகுப்பறைக்கு சமூகமளித்தல் மற்றும் வகுப்புப் பாடப் பதிவேட்டில் உரியவாறு பதிவுகளைப் பேணுதல்.", "சிறந்த ஆளுமையும் தன்னம்பிக்கையும் கொண்டிருத்தல்.", "பாடசாலை மட்டக் கணிப்பீடு / அளவீடு (ஆரம்பநிலை) உரியவாறு முடிவுறுத்தல், பகுப்பாய்வு செய்தல், பரிகார வேலைத்திட்டத்தை மேற்கொள்ளுதல்.", "உரிய காலத்தில் பாடத்திட்டத்தின் இலக்குகளை அடைவதற்காகச் செயற்படுதல்.", "மாணவர் பயிற்சிகளின் பிழையற்ற தன்மையைப் பரிசீலித்தலும் தேவையான ஆலோசனைகளை உரியவாறு வழங்குதலும்.", "பயிற்சிக் கருத்தரங்குகளுக்கு சமூகமளித்தலும் தொழில்சார் அறிவினை இற்றைப்படுத்துவதற்கு நடவடிக்கை மேற்கொள்ளலும்."]}];
@@ -208,7 +213,8 @@ const pc=x=>x==null?"–":(x*100).toFixed(1)+"%";
 function toast(m){const t=$("#toast");t.textContent=m;t.style.display="block";clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display="none",2600)}
 
 function fail(e){console.error(e);const m=String(e&&e.code||e&&e.message||e);
- toast(/permission|insufficient/i.test(m)?"அனுமதி மறுக்கப்பட்டது – Firestore rules இல் lt_teachers, lt_supervisions க்கு அனுமதி சேர்க்கவும் ("+m+")":"பிழை: "+m)}
+ const where=SCHOOL_ID?`schools/${SCHOOL_ID}/lt_teachers, schools/${SCHOOL_ID}/lt_supervisions`:"lt_teachers, lt_supervisions";
+ toast(/permission|insufficient/i.test(m)?"அனுமதி மறுக்கப்பட்டது – Firestore rules இல் "+where+" க்கு அனுமதி சேர்க்கவும் ("+m+")":"பிழை: "+m)}
 window.addEventListener("unhandledrejection",ev=>{ev.preventDefault();fail(ev.reason)});
 /* ---------- storage layer ---------- */
 let store, mode="local";
@@ -219,11 +225,21 @@ const localStore={
  async save(col,o){const a=await this.list(col);const i=a.findIndex(x=>x.id===o.id);i>=0?a[i]=o:a.push(o);LS.set(`lt_${SCHOOL_ID||'main'}_${col}`,JSON.stringify(a))},
  async remove(col,id){const a=(await this.list(col)).filter(x=>x.id!==id);LS.set(`lt_${SCHOOL_ID||'main'}_${col}`,JSON.stringify(a))}
 };
+let _db=null,_fs=null;
+async function fetchSchoolName(){
+ if(!_db||!_fs||!SCHOOL_ID) return;
+ const snap=await _fs.getDoc(_fs.doc(_db,'schools',SCHOOL_ID));
+ if(snap.exists() && snap.data().name){
+  SCHOOL_NAME = snap.data().name;
+  const el=$("#schoolName"); if(el) el.textContent=SCHOOL_NAME;
+ }
+}
 async function initFirebase(){
  const B="https://www.gstatic.com/firebasejs/10.12.2/";
  const [{initializeApp,getApps,getApp},fs,au]=await Promise.all([import(B+"firebase-app.js"),import(B+"firebase-firestore.js"),import(B+"firebase-auth.js")]);
  const app=getApps().length?getApp():initializeApp(FIREBASE_CONFIG);
  const db=fs.getFirestore(app), auth=au.getAuth(app);
+ _db=db; _fs=fs;
  const path=c=>SCHOOL_ID?`schools/${SCHOOL_ID}/lt_${c}`:`lt_${c}`;
  store={
   async list(c){const s=await fs.getDocs(fs.collection(db,path(c)));return s.docs.map(d=>({...d.data(),id:d.id}))},
@@ -369,7 +385,7 @@ function printResults(){
  const today=new Date().toLocaleDateString("ta-LK");
  const overallRows=[["மேற்பார்வை செய்யப்பட்ட ஆசிரியர்கள்",new Set(records.map(r=>r.teacherId)).size],["மொத்த மேற்பார்வைகள்",a.n],["மதிப்பிடப்பட்ட சுட்டிகள்",a.ev],["பெறவேண்டிய உச்சப் புள்ளிகள் (30×6×பதிவுகள்)",a.max],["பெறப்பட்ட புள்ளிகள்",a.ob],["மொத்தச் சதவீதம்",pc(a.pct)]]
   .map(([l,v])=>`<tr><td>${l}</td><td class="c"><b>${v}</b></td></tr>`).join("");
- const teachRows=teachers.map((t,i)=>{const x=agg(records.filter(r=>r.teacherId===t.id));return `<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td class="c">${x.n}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td></tr>`}).join("")||`<tr><td colspan="7" class="c">தரவு இல்லை</td></tr>`;
+ const teachRows=teachers.map((t,i)=>{const x=agg(records.filter(r=>r.teacherId===t.id));return `<tr><td class="c">${i+1}</td><td style="white-space:nowrap">${esc(t.name)}</td><td class="c">${x.n}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td></tr>`}).join("")||`<tr><td colspan="7" class="c">தரவு இல்லை</td></tr>`;
  const critRows=CRIT.map(g=>{const x=sums(g.code);return `<tr><td class="c">${g.code}</td><td>${esc(g.title)}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td></tr>`}).join("");
  const indRows=IND.map(i=>{const v=records.map(r=>r.scores[i.code]).filter(Boolean),s=v.reduce((a,b)=>a+b,0),p=v.length?s/(v.length*6):null;return `<tr><td class="c">${i.code}</td><td class="txt">${esc(i.text)}</td><td class="c">${v.length}</td><td class="c">${v.length?(s/v.length).toFixed(2):"–"}</td><td class="c">${pc(p)}</td></tr>`}).join("");
  const html=`<div class="pageform">
@@ -379,7 +395,8 @@ function printResults(){
   <h3 style="margin:14px 0 6px;font-size:14px">அனைத்து ஆசிரியர்களினதும் மொத்த முடிவு</h3>
   <table class="sum" style="width:70%"><tbody>${overallRows}</tbody></table>
   <h3 style="margin:16px 0 6px;font-size:14px">ஆசிரியர்வாரி முடிவுகள்</h3>
-  <table><thead><tr><th>#</th><th>ஆசிரியர்</th><th>மேற்பார்வைகள்</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th></tr></thead><tbody>${teachRows}</tbody></table>
+  <table><colgroup><col style="width:6%"><col style="width:26%"><col style="width:13%"><col style="width:11%"><col style="width:16%"><col style="width:14%"><col style="width:14%"></colgroup>
+  <thead><tr><th>#</th><th>ஆசிரியர்</th><th>மேற்பார்வைகள்</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th></tr></thead><tbody>${teachRows}</tbody></table>
   <h3 style="margin:16px 0 6px;font-size:14px">நியதிவாரி முடிவுகள்</h3>
   <table><thead><tr><th>குறியீடு</th><th>நியதி</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th></tr></thead><tbody>${critRows}</tbody></table>
   <h3 style="margin:16px 0 6px;font-size:14px">சுட்டிவாரி முடிவுகள்</h3>
@@ -454,6 +471,7 @@ async function boot(){
  $("#modeBadge").textContent="Firebase";
  try{
   const {auth,au}=await initFirebase();mode="firebase";
+  if(SCHOOL_ID){fetchSchoolName().catch(()=>{})}
   $("#logoutBtn").onclick=()=>au.signOut(auth);
   $("#lBtn").onclick=async()=>{$("#lErr").textContent="";try{await au.signInWithEmailAndPassword(auth,$("#lEmail").value.trim(),$("#lPass").value)}catch(e){$("#lErr").textContent="உள்நுழைவு தோல்வி: "+e.code}};
   au.onAuthStateChanged(auth,u=>{

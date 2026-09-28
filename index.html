@@ -653,6 +653,12 @@ var state = {
   user:null,
   role:null,
   currentDept:null,
+  isSuperAdmin:false,      // true only for SUPERADMIN_EMAILS — can manage every school
+  schoolId:null,           // which school's data (schools/{schoolId}/...) is currently open
+  schools:null,            // superadmin: list of all schools, once loaded
+  schoolsUnsub:null,
+  schoolsError:null,
+  mySchools:null,          // non-superadmin, member of >1 school: list of memberships to pick from
   school:{name:'', year:String(new Date().getFullYear())},
   deptData:{},        // deptId -> {note, criteria:[...]}
   deptUnsub:{},        // deptId -> unsubscribe fn
@@ -872,6 +878,16 @@ function deptDocSizeChars(deptId){
 
 /* ---------------- Firestore data layer ---------------- */
 
+/* Every school's data lives under schools/{schoolId}/... in the same shared
+   Firebase project. state.schoolId says which school is currently open —
+   these helpers always read/write inside that school only, so different
+   schools' data can never mix. */
+function schoolDocRef(schoolId){ return db.collection('schools').doc(schoolId||state.schoolId); }
+function deptsColRef(schoolId){ return schoolDocRef(schoolId).collection('departments'); }
+function usersColRef(schoolId){ return schoolDocRef(schoolId).collection('users'); }
+function ltSupervisionsColRef(schoolId){ return schoolDocRef(schoolId).collection('lt_supervisions'); }
+function ltTeachersColRef(schoolId){ return schoolDocRef(schoolId).collection('lt_teachers'); }
+
 function saveTimers(){ return saveTimers._t || (saveTimers._t = {}); }
 function scheduleSaveDept(deptId){
   var size = deptDocSizeChars(deptId);
@@ -882,7 +898,7 @@ function scheduleSaveDept(deptId){
   setSaveStatus('சேமிக்கிறது…');
   clearTimeout(saveTimers()[deptId]);
   saveTimers()[deptId] = setTimeout(function(){
-    db.collection('departments').doc(deptId).set(state.deptData[deptId]).then(function(){
+    deptsColRef().doc(deptId).set(state.deptData[deptId]).then(function(){
       setSaveStatus('சேமிக்கப்பட்டது ✓');
     }).catch(function(err){
       var msg = err && err.message ? err.message : '';
@@ -901,14 +917,14 @@ function setSaveStatus(text){
 
 function subscribeDept(deptId, onChange){
   if(state.deptUnsub[deptId]) return;
-  state.deptUnsub[deptId] = db.collection('departments').doc(deptId).onSnapshot(function(snap){
+  state.deptUnsub[deptId] = deptsColRef().doc(deptId).onSnapshot(function(snap){
     delete state.deptErrors[deptId];
     if(snap.metadata.hasPendingWrites) return; // our own optimistic write echoing back
     if(snap.exists){
       state.deptData[deptId] = migrateDeptData(snap.data(), deptId);
     } else {
       state.deptData[deptId] = buildEmptyDeptData(deptId);
-      db.collection('departments').doc(deptId).set(state.deptData[deptId]).catch(function(){});
+      deptsColRef().doc(deptId).set(state.deptData[deptId]).catch(function(){});
     }
     if(onChange) onChange();
   }, function(err){
@@ -926,10 +942,30 @@ function unsubscribeAllDepts(){
 
 function subscribeSchoolMeta(onChange){
   if(state.schoolUnsub) return;
-  state.schoolUnsub = db.collection('config').doc('school').onSnapshot(function(snap){
+  state.schoolUnsub = schoolDocRef().onSnapshot(function(snap){
     if(snap.exists){ state.school = snap.data(); }
     if(onChange) onChange();
   });
+}
+function unsubscribeSchoolMeta(){
+  if(state.schoolUnsub){ state.schoolUnsub(); state.schoolUnsub=null; }
+}
+
+/* Leaves the currently-open school's data context entirely (unsubscribes
+   everything, clears cached data) — used when a superadmin switches from
+   one school to another, or back to the schools list. */
+function leaveSchoolContext(){
+  unsubscribeAllDepts();
+  unsubscribeSchoolMeta();
+  if(state.ltSupervisionsUnsub){ state.ltSupervisionsUnsub(); state.ltSupervisionsUnsub=null; }
+  state.deptData = {};
+  state.deptErrors = {};
+  state.ltSupervisions = null;
+  state.ltSupervisionsError = null;
+  state.usersCache = [];
+  state.schoolId = null;
+  state.currentDept = null;
+  state.school = {name:'', year:String(new Date().getFullYear())};
 }
 
 /* கற்றல் கற்பித்தல் மேற்பார்வை (supervision.html) அதே Firebase திட்டத்தில் எழுதும்
@@ -938,7 +974,7 @@ function subscribeSchoolMeta(onChange){
 var LT_MAX_PER_RECORD = 180;
 function subscribeLtSupervisions(onChange){
   if(state.ltSupervisionsUnsub) return;
-  state.ltSupervisionsUnsub = db.collection('lt_supervisions').onSnapshot(function(snap){
+  state.ltSupervisionsUnsub = ltSupervisionsColRef().onSnapshot(function(snap){
     var rows = [];
     snap.forEach(function(doc){ rows.push(Object.assign({id:doc.id}, doc.data())); });
     state.ltSupervisions = rows;
@@ -970,39 +1006,61 @@ function getSecondaryApp(){
   return secondaryApp;
 }
 
-function fetchRole(uid){
-  return db.collection('users').doc(uid).get().then(function(doc){
-    return doc.exists ? doc.data().role : null;
+/* Every school keeps its own users subcollection: schools/{schoolId}/users/{uid}.
+   To find which school(s) a signed-in account belongs to (without already
+   knowing the schoolId), we store a "uid" field on every such document and
+   run a collectionGroup query across all schools for that field. */
+function findMyMemberships(myUid){
+  return db.collectionGroup('users').where('uid','==',myUid).get().then(function(snap){
+    var rows = [];
+    snap.forEach(function(doc){
+      var schoolId = doc.ref.parent.parent.id;
+      rows.push({schoolId:schoolId, role:doc.data().role, email:doc.data().email});
+    });
+    return rows;
   });
+}
+
+function enterSchoolAsMember(schoolId, role){
+  state.schoolId = schoolId;
+  state.role = role;
+  subscribeSchoolMeta(function(){ renderApp(); });
+  if(role==='admin'){ state.view='admin'; renderApp(); }
+  else if(deptById(role)){ state.currentDept=role; state.view='dept'; subscribeDept(role, function(){ if((state.view==='dept'||state.view==='adminDept')&&!isTypingInApp()) renderApp(); }); renderApp(); }
+  else { state.view='noRole'; renderApp(); }
+}
+
+/* Superadmin: open a specific school as its admin (to configure it, add
+   users, view its dashboard) — does not need a Firestore users document in
+   that school at all, since Firestore Rules and this file both grant this
+   email admin access to every school unconditionally. */
+function enterSchoolAsSuperAdmin(schoolId){
+  state.schoolId = schoolId;
+  state.role = 'admin';
+  subscribeSchoolMeta(function(){ renderApp(); });
+  state.view = 'admin';
+  renderApp();
 }
 
 function routeAfterAuth(){
   if(!state.user){ state.view='login'; renderApp(); return; }
 
-  /* Superadmin safety net: this account always gets Admin, regardless of
-     what Firestore's "users" collection or Rules currently say. We still
-     try (in the background) to make sure the Firestore role document says
-     "admin" too, so the rest of the app (which checks Firestore Rules for
-     writes) keeps working — but we never wait on that, and we never let a
-     Firestore error block this account from getting in. */
+  /* Superadmin safety net: this account always gets in, regardless of what
+     Firestore's data or Rules currently say, and it manages every school
+     rather than being tied to just one. */
   if(isSuperAdminEmail(state.user.email)){
-    state.role = 'admin';
-    state.view = 'admin';
+    state.isSuperAdmin = true;
+    state.view = 'superadmin';
     renderApp();
-    subscribeSchoolMeta(function(){ if(state.view==='admin') renderApp(); });
-    db.collection('users').doc(state.user.uid).set(
-      {email: state.user.email, role: 'admin'}, {merge:true}
-    ).catch(function(){ /* fine if this fails; the safety net above still lets them in */ });
     return;
   }
 
-  fetchRole(state.user.uid).then(function(role){
-    state.role = role;
-    if(!role){ state.view='noRole'; renderApp(); return; }
-    subscribeSchoolMeta(function(){ if(state.view==='admin') renderApp(); });
-    if(role==='admin'){ state.view='admin'; renderApp(); }
-    else if(deptById(role)){ state.currentDept=role; state.view='dept'; subscribeDept(role, function(){ if(state.view==='dept'&&!isTypingInApp()) renderApp(); }); renderApp(); }
-    else { state.view='noRole'; renderApp(); }
+  findMyMemberships(state.user.uid).then(function(rows){
+    if(!rows.length){ state.view='noRole'; renderApp(); return; }
+    if(rows.length===1){ enterSchoolAsMember(rows[0].schoolId, rows[0].role); return; }
+    state.mySchools = rows;
+    state.view = 'schoolPicker';
+    renderApp();
   }).catch(function(err){
     state.view = 'authError';
     state.authErrorMessage = (err && (err.code || err.message)) || 'unknown error';
@@ -1010,20 +1068,104 @@ function routeAfterAuth(){
   });
 }
 
+/* ---------------- superadmin: schools management ---------------- */
+
+function subscribeSchoolsList(onChange){
+  if(state.schoolsUnsub) return;
+  state.schoolsUnsub = db.collection('schools').onSnapshot(function(snap){
+    var rows = [];
+    snap.forEach(function(doc){ rows.push(Object.assign({id:doc.id}, doc.data())); });
+    rows.sort(function(a,b){ return (a.name||'').localeCompare(b.name||''); });
+    state.schools = rows;
+    state.schoolsError = null;
+    if(onChange) onChange();
+  }, function(err){
+    state.schoolsError = (err && (err.code || err.message)) || 'unknown error';
+    if(onChange) onChange();
+  });
+}
+
+function createSchool(name){
+  var schoolId = uid();
+  return db.collection('schools').doc(schoolId).set({
+    name: name,
+    year: String(new Date().getFullYear()),
+    logoData: null,
+    createdAt: new Date().toISOString(),
+    createdBy: state.user ? state.user.email : ''
+  }).then(function(){ return schoolId; });
+}
+
+/* One-time helper: copies the app's original single-school data (the old
+   top-level departments/users/config/lt_teachers/lt_supervisions
+   collections) into a brand-new schools/{id} entry, so nothing already
+   entered is lost when moving to the multi-school structure. Safe to run
+   more than once accidentally — it only ever ADDS a new school, never
+   deletes the old top-level data. */
+function migrateOldDataIntoNewSchool(){
+  var schoolId = uid();
+  var newSchoolRef = db.collection('schools').doc(schoolId);
+  return db.collection('config').doc('school').get().then(function(cfgDoc){
+    var meta = cfgDoc.exists ? cfgDoc.data() : {};
+    if(!meta.name) meta.name = "St. Mary's Tamil Maha Vidyalaya, Bambalapitiya";
+    if(!meta.year) meta.year = String(new Date().getFullYear());
+    meta.createdAt = new Date().toISOString();
+    meta.createdBy = state.user ? state.user.email : '';
+    return newSchoolRef.set(meta);
+  }).then(function(){
+    return db.collection('departments').get();
+  }).then(function(snap){
+    var batch = db.batch();
+    snap.forEach(function(doc){ batch.set(newSchoolRef.collection('departments').doc(doc.id), doc.data()); });
+    return batch.commit();
+  }).then(function(){
+    return db.collection('users').get();
+  }).then(function(snap){
+    var batch = db.batch();
+    snap.forEach(function(doc){
+      var data = doc.data();
+      data.uid = doc.id;
+      batch.set(newSchoolRef.collection('users').doc(doc.id), data);
+    });
+    return batch.commit();
+  }).then(function(){
+    return db.collection('lt_teachers').get().catch(function(){ return {forEach:function(){}}; });
+  }).then(function(snap){
+    var batch = db.batch();
+    snap.forEach(function(doc){ batch.set(newSchoolRef.collection('lt_teachers').doc(doc.id), doc.data()); });
+    return batch.commit();
+  }).then(function(){
+    return db.collection('lt_supervisions').get().catch(function(){ return {forEach:function(){}}; });
+  }).then(function(snap){
+    var batch = db.batch();
+    snap.forEach(function(doc){ batch.set(newSchoolRef.collection('lt_supervisions').doc(doc.id), doc.data()); });
+    return batch.commit();
+  }).then(function(){
+    return schoolId;
+  });
+}
+
 /* ---------------- rendering ---------------- */
 
 function renderApp(){
   var app = document.getElementById('app');
-  if(CONFIG_IS_PLACEHOLDER){ return renderSetupNeeded(app); }
-  if(state.view==='boot') return renderBoot(app);
-  if(state.view==='login') return renderLogin(app);
-  if(state.view==='noRole') return renderNoRole(app);
-  if(state.view==='authError') return renderAuthError(app);
-  if(state.view==='dept') return renderDeptView(app, state.currentDept, {admin:false});
-  if(state.view==='adminDept') return renderDeptView(app, state.currentDept, {admin:true});
-  if(state.view==='admin') return renderAdminOverview(app);
-  if(state.view==='setup') return renderSchoolSetup(app);
-  if(state.view==='report') return renderEvidenceReport(app, state.reportScope);
+  if(CONFIG_IS_PLACEHOLDER){ renderSetupNeeded(app); return; }
+  if(state.view==='boot'){ renderBoot(app); return; }
+  if(state.view==='login'){ renderLogin(app); return; }
+  if(state.view==='noRole'){ renderNoRole(app); return; }
+  if(state.view==='authError'){ renderAuthError(app); return; }
+  if(state.view==='superadmin'){ renderSuperAdmin(app); return; }
+  if(state.view==='schoolPicker'){ renderSchoolPicker(app); return; }
+  if(state.view==='dept'){ renderDeptView(app, state.currentDept, {admin:false}); wireSwitchSchoolBtn(); return; }
+  if(state.view==='adminDept'){ renderDeptView(app, state.currentDept, {admin:true}); wireSwitchSchoolBtn(); return; }
+  if(state.view==='admin'){ renderAdminOverview(app); wireSwitchSchoolBtn(); return; }
+  if(state.view==='setup'){ renderSchoolSetup(app); wireSwitchSchoolBtn(); return; }
+  if(state.view==='report'){ renderEvidenceReport(app, state.reportScope); wireSwitchSchoolBtn(); return; }
+}
+
+function wireSwitchSchoolBtn(){
+  var b = document.getElementById('btnSwitchSchool');
+  if(b) b.onclick = function(){ leaveSchoolContext(); state.view='superadmin'; renderApp(); };
 }
 
 function renderSetupNeeded(app){
@@ -1049,12 +1191,13 @@ function brandMarkHtml(size){
 function topbarHtml(rightHtml){
   var name = state.school && state.school.name ? state.school.name : 'பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு';
   var year = state.school && state.school.year ? state.school.year : '';
+  var switchBtn = (state.isSuperAdmin && state.schoolId) ? '<button class="btn-ghost" id="btnSwitchSchool">🏫 பள்ளிகள்</button> ' : '';
   return '<div class="topbar">'+
     '<div class="brand">'+brandMarkHtml(42)+
       '<div><div class="brand-title">'+escapeHtml(name)+'</div>'+
       '<div class="brand-sub">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு'+(year?(' · '+escapeHtml(year)):'')+'</div></div>'+
     '</div>'+
-    '<div class="topbar-actions"><span id="saveStatus" class="save-status"></span>'+rightHtml+'</div>'+
+    '<div class="topbar-actions"><span id="saveStatus" class="save-status"></span>'+switchBtn+rightHtml+'</div>'+
   '</div>';
 }
 
@@ -1144,6 +1287,108 @@ function renderAuthError(app){
       '<p>குறிப்பு: Superadmin மின்னஞ்சலாக பட்டியலிடப்பட்ட கணக்கு (அதிபரின் கணக்கு) இந்தப் பிழையை ஒருபோதும் காணாது — அது எப்போதும் நேரடியாக உள்நுழையும்.</p>'+
     '</div></div>';
   document.getElementById('btnLogout').onclick=function(){ auth.signOut(); };
+}
+
+function renderSchoolPicker(app){
+  var rows = state.mySchools || [];
+  app.innerHTML =
+    '<div class="center-wrap"><div class="login-card" style="max-width:520px;text-align:left">'+
+      '<h1 style="text-align:center">பாடசாலையைத் தெரிவு செய்யவும்</h1>'+
+      '<p>உங்கள் கணக்கு ஒன்றுக்கு மேற்பட்ட பாடசாலைகளில் பங்கு பெற்றுள்ளது. தொடர விரும்பும் பாடசாலையைத் தெரிவு செய்யவும்.</p>'+
+      '<div id="schoolPickList" style="display:flex;flex-direction:column;gap:8px;margin-top:14px">'+
+        rows.map(function(r,i){
+          var roleLabel = (r.role==='admin') ? 'அதிபர் / முகாமைத்துவம்' : (deptById(r.role)?deptById(r.role).name:r.role);
+          return '<button type="button" class="btn-outline" data-i="'+i+'" style="text-align:left">'+escapeHtml(r.schoolId)+' — '+escapeHtml(roleLabel)+'</button>';
+        }).join('')+
+      '</div>'+
+      '<p style="margin-top:16px"><button type="button" class="btn-ghost" id="btnPickerLogout">← வெளியேறு</button></p>'+
+    '</div></div>';
+  app.querySelectorAll('[data-i]').forEach(function(btn){
+    btn.onclick=function(){
+      var r = rows[parseInt(btn.getAttribute('data-i'),10)];
+      enterSchoolAsMember(r.schoolId, r.role);
+    };
+  });
+  document.getElementById('btnPickerLogout').onclick=function(){ auth.signOut(); };
+}
+
+function renderSuperAdmin(app){
+  subscribeSchoolsList(function(){ if(state.view==='superadmin') renderSuperAdmin(app); });
+
+  if(state.schoolsError){
+    app.innerHTML =
+      '<div class="topbar"><div class="brand"><div class="brand-title">Superadmin</div></div>'+
+      '<div class="topbar-actions"><button class="btn-ghost" id="btnLogoutSA">← வெளியேறு</button></div></div>'+
+      '<div class="setup-notice" style="margin-top:20px"><strong>பாடசாலைகளின் பட்டியலைப் பெற முடியவில்லை:</strong> <code>'+escapeHtml(state.schoolsError)+'</code>'+
+      '<br><br>Firestore Rules இல் <code>schools</code> தொகுப்புக்கான அனுமதி சேர்க்கப்பட்டு Publish செய்யப்பட்டுள்ளதா எனச் சரிபார்க்கவும்.</div>';
+    document.getElementById('btnLogoutSA').onclick=function(){ auth.signOut(); };
+    return;
+  }
+  if(state.schools===null){
+    app.innerHTML = '<div class="center-wrap"><p style="color:var(--ink-soft)">பாடசாலைகள் ஏற்றப்படுகிறது…</p></div>';
+    return;
+  }
+
+  var showMigrate = state.schools.length===0;
+
+  app.innerHTML =
+    '<div class="topbar"><div class="brand"><div><div class="brand-title">Superadmin — பள்ளிகள் மேலாண்மை</div>'+
+    '<div class="brand-sub">'+escapeHtml(state.user?state.user.email:'')+'</div></div></div>'+
+    '<div class="topbar-actions"><button class="btn-ghost" id="btnLogoutSA">← வெளியேறு</button></div></div>'+
+    '<div class="dept-header"><h1>பள்ளிகள்</h1>'+
+    '<p class="dept-sub">ஒவ்வொரு பள்ளியும் அதற்கே உரிய தனித்தனி தரவுத்தளத்தை (துறைகள், சான்றுகள், பயனர்கள்) கொண்டிருக்கும்.</p></div>'+
+    '<div class="add-user-form">'+
+      '<div class="field" style="flex:1;min-width:260px"><label>புதிய பள்ளியின் பெயர்</label><input type="text" id="newSchoolName" placeholder="எ.கா. St. Mary\'s Tamil Maha Vidyalaya"></div>'+
+      '<button class="btn-primary" id="btnCreateSchool">+ புதிய பள்ளியை உருவாக்கு</button>'+
+    '</div>'+
+    '<div class="error-msg" id="saErr"></div>'+
+    (showMigrate ?
+      '<div class="setup-notice">இதுவரை எந்தப் பள்ளியும் இங்கு பதிவு செய்யப்படவில்லை. இந்தச் செயலி முன்பு ஒரு பள்ளிக்காக மட்டும் பயன்பட்டிருந்தால், அதன் ஏற்கெனவே உள்ள தரவை (துறைகள், பயனர்கள், கற்றல் கற்பித்தல் மேற்பார்வைப் பதிவுகள்) இழக்காமல் முதல் பள்ளியாக இங்கு கொண்டு வர கீழுள்ள பொத்தானை அழுத்தவும். இது பழைய தரவை நீக்காது — புதிதாக நகலெடுக்கும்.</div>'+
+      '<p><button type="button" class="btn-outline" id="btnMigrate">முன்பிருந்த தரவை முதல் பள்ளியாகக் கொண்டுவா</button></p>'
+      : '')+
+    '<table class="setup-table"><thead><tr><th>பள்ளி</th><th>ஆண்டு</th><th></th></tr></thead>'+
+    '<tbody id="schoolsTbody">'+
+      (state.schools.length ? state.schools.map(function(s){
+        return '<tr><td>'+escapeHtml(s.name||'(பெயரிடப்படாதது)')+'</td><td>'+escapeHtml(s.year||'—')+'</td>'+
+          '<td><button class="btn-tiny" data-open="'+s.id+'">திற →</button></td></tr>';
+      }).join('') : '<tr><td colspan="3" style="color:var(--ink-soft)">இதுவரை பள்ளிகள் எதுவும் இல்லை.</td></tr>')+
+    '</tbody></table>';
+
+  document.getElementById('btnLogoutSA').onclick=function(){
+    if(state.schoolsUnsub){ state.schoolsUnsub(); state.schoolsUnsub=null; }
+    state.schools=null;
+    auth.signOut();
+  };
+  document.getElementById('btnCreateSchool').onclick=function(){
+    var nameEl = document.getElementById('newSchoolName');
+    var name = nameEl.value.trim();
+    var errEl = document.getElementById('saErr');
+    errEl.textContent='';
+    if(!name){ errEl.textContent='பள்ளியின் பெயரை இடவும்.'; return; }
+    createSchool(name).then(function(schoolId){
+      nameEl.value='';
+      enterSchoolAsSuperAdmin(schoolId);
+    }).catch(function(err){ errEl.textContent = err.message; });
+  };
+  var migBtn = document.getElementById('btnMigrate');
+  if(migBtn){
+    migBtn.onclick=function(){
+      if(!confirm('முன்பிருந்த தரவை முதல் பள்ளியாக நகலெடுக்கவா? இது சில நொடிகள் ஆகலாம்.')) return;
+      migBtn.disabled = true;
+      migBtn.textContent = 'நகலெடுக்கப்படுகிறது…';
+      migrateOldDataIntoNewSchool().then(function(schoolId){
+        alert('முடிந்தது! பழைய தரவு முதல் பள்ளியாக நகலெடுக்கப்பட்டது.');
+        enterSchoolAsSuperAdmin(schoolId);
+      }).catch(function(err){
+        alert('நகலெடுப்பதில் சிக்கல்: '+err.message);
+        migBtn.disabled = false;
+        migBtn.textContent = 'முன்பிருந்த தரவை முதல் பள்ளியாகக் கொண்டுவா';
+      });
+    };
+  }
+  app.querySelectorAll('[data-open]').forEach(function(btn){
+    btn.onclick=function(){ enterSchoolAsSuperAdmin(btn.getAttribute('data-open')); };
+  });
 }
 
 /* ---- shared department (data-entry) rendering ---- */
@@ -1264,7 +1509,7 @@ function renderDeptView(app, deptId, opts){
         '</div>'+
       '</div>'+
       '<div class="setup-notice">இந்தத் துறையின் மதிப்பீடு <strong>"கற்றல் கற்பித்தல் மேற்பார்வை"</strong> எனும் தனிப் பக்கத்தில் (ஆசிரியர் ஒவ்வொருவரையும் தனித்தனியாக அவதானித்து 30 சுட்டிகளுக்கும் புள்ளியிடும் படிவம்) செய்யப்படுகிறது. கீழே உள்ள பொத்தானை அழுத்தி அதைத் திறக்கவும் — அங்கு பதிவு செய்யப்படும் அனைத்தும் இங்கு தானாகவே தெரியும்.</div>'+
-      '<p><a class="btn-primary" style="text-decoration:none;display:inline-block" href="supervision.html" target="_blank" rel="noopener">கற்றல் கற்பித்தல் மேற்பார்வைப் படிவத்தைத் திற ↗</a></p>'+
+      '<p><a class="btn-primary" style="text-decoration:none;display:inline-block" href="supervision.html?school='+encodeURIComponent(state.schoolId||'')+'" target="_blank" rel="noopener">கற்றல் கற்பித்தல் மேற்பார்வைப் படிவத்தைத் திற ↗</a></p>'+
       '<table class="setup-table"><thead><tr><th>#</th><th>திகதி</th><th>ஆசிரியர்</th><th>பாடம்</th><th>வகுப்பு</th><th>மொத்த மதிப்பெண்கள்</th><th>பெற்ற மதிப்பெண்கள்</th></tr></thead>'+
       '<tbody>'+
         (lt.records.length ? lt.records.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); }).map(function(r,i){
@@ -1627,7 +1872,7 @@ function renderSchoolSetup(app){
   document.getElementById('btnBackAdmin').onclick=function(){ state.view='admin'; renderApp(); };
 
   function saveSchoolMeta(){
-    db.collection('config').doc('school').set(school).then(function(){
+    schoolDocRef().set(school, {merge:true}).then(function(){
       setSaveStatus('சேமிக்கப்பட்டது ✓');
     }).catch(function(err){ setSaveStatus('சேமிப்பில் சிக்கல்: '+err.message); });
     var t=document.querySelector('.brand-title'); if(t) t.textContent=school.name||'';
@@ -1654,7 +1899,7 @@ function renderSchoolSetup(app){
   }
 
   function loadUsers(){
-    db.collection('users').get().then(function(snap){
+    usersColRef().get().then(function(snap){
       var rows = [];
       snap.forEach(function(doc){ rows.push({uid:doc.id, email:doc.data().email, role:doc.data().role}); });
       state.usersCache = rows;
@@ -1686,7 +1931,7 @@ function renderSchoolSetup(app){
     tbody.querySelectorAll('[data-role-for]').forEach(function(sel){
       sel.onchange=function(){
         var targetUid = sel.getAttribute('data-role-for');
-        db.collection('users').doc(targetUid).update({role:sel.value}).then(function(){
+        usersColRef().doc(targetUid).update({role:sel.value}).then(function(){
           var u = state.usersCache.find(function(x){ return x.uid===targetUid; });
           if(u) u.role = sel.value;
         }).catch(function(err){ alert('பங்கை மாற்ற முடியவில்லை: '+err.message); });
@@ -1703,7 +1948,7 @@ function renderSchoolSetup(app){
       btn.onclick=function(){
         var targetUid = btn.getAttribute('data-uid');
         if(!confirm('இந்தப் பயனரின் அணுகல் பங்கை நீக்கவா? (இது Firebase Authentication இலிருந்து கணக்கையே நீக்காது — தேவைப்பட்டால் அதை Firebase console இல் தனியாக நீக்க வேண்டும்.)')) return;
-        db.collection('users').doc(targetUid).delete().then(loadUsers).catch(function(err){ alert(err.message); });
+        usersColRef().doc(targetUid).delete().then(loadUsers).catch(function(err){ alert(err.message); });
       };
     });
   }
@@ -1720,7 +1965,7 @@ function renderSchoolSetup(app){
     var secAuth = sec.auth();
     secAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
       var newUid = cred.user.uid;
-      return db.collection('users').doc(newUid).set({email:email, role:role}).then(function(){
+      return usersColRef().doc(newUid).set({email:email, role:role, uid:newUid}).then(function(){
         return secAuth.signOut();
       });
     }).then(function(){
@@ -1761,9 +2006,11 @@ function boot(){
 
   auth.onAuthStateChanged(function(user){
     state.user = user;
-    unsubscribeAllDepts();
-    state.deptErrors = {};
-    if(state.schoolUnsub){ state.schoolUnsub(); state.schoolUnsub=null; }
+    leaveSchoolContext();
+    if(state.schoolsUnsub){ state.schoolsUnsub(); state.schoolsUnsub=null; }
+    state.isSuperAdmin = false;
+    state.schools = null;
+    state.mySchools = null;
     routeAfterAuth();
   }, function(err){
     renderFatalError('உள்நுழைவு நிலையைச் சரிபார்க்க முடியவில்லை:\n\n'+(err && err.message ? err.message : err));
