@@ -683,7 +683,10 @@ var state = {
   deferredInstallPrompt:null,
   ltSupervisions:null,     // array of records from supervision.html's lt_supervisions collection, once loaded
   ltSupervisionsUnsub:null,
-  ltSupervisionsError:null
+  ltSupervisionsError:null,
+  noRoleUnsub:null,         // live listener while on the "no role assigned yet" screen
+  pendingAccounts:null,     // superadmin: accounts signed in but waiting for a school/role
+  pendingAccountsUnsub:null
 };
 
 var auth=null, db=null, secondaryApp=null;
@@ -979,6 +982,9 @@ function leaveSchoolContext(){
   unsubscribeAllDepts();
   unsubscribeSchoolMeta();
   if(state.ltSupervisionsUnsub){ state.ltSupervisionsUnsub(); state.ltSupervisionsUnsub=null; }
+  if(state.noRoleUnsub){ state.noRoleUnsub(); state.noRoleUnsub=null; }
+  if(state.pendingAccountsUnsub){ state.pendingAccountsUnsub(); state.pendingAccountsUnsub=null; }
+  state.pendingAccounts = null;
   state.deptData = {};
   state.deptErrors = {};
   state.ltSupervisions = null;
@@ -1115,6 +1121,19 @@ function subscribeSchoolsList(onChange){
     state.schoolsError = (err && (err.code || err.message)) || 'unknown error';
     if(onChange) onChange();
   });
+}
+
+/* Accounts that have signed in but aren't yet assigned to any school/role
+   (renderNoRole writes these) — lets the superadmin assign them from here
+   instead of needing to know in advance how the login was created. */
+function subscribePendingAccounts(onChange){
+  if(state.pendingAccountsUnsub) return;
+  state.pendingAccountsUnsub = db.collection('userSchoolMap').where('pending','==',true).onSnapshot(function(snap){
+    var rows = [];
+    snap.forEach(function(doc){ rows.push(Object.assign({id:doc.id}, doc.data())); });
+    state.pendingAccounts = rows;
+    if(onChange) onChange();
+  }, function(){ /* non-fatal: panel simply stays hidden if this fails */ });
 }
 
 function createSchool(name, year, accessStart, accessEnd){
@@ -1307,9 +1326,31 @@ function renderNoRole(app){
     topbarHtml('<button class="btn-ghost" id="btnLogout">← வெளியேறு</button>') +
     '<div class="center-wrap"><div class="login-card">'+
       '<h1>அணுகல் பங்கு நியமிக்கப்படவில்லை</h1>'+
-      '<p>உங்கள் கணக்கு ('+escapeHtml(state.user?state.user.email:'')+') உருவாக்கப்பட்டுள்ளது, ஆனால் இன்னும் எந்தத் துறையும் நியமிக்கப்படவில்லை. அதிபரிடம் தொடர்பு கொள்ளவும்.</p>'+
+      '<p>உங்கள் கணக்கு ('+escapeHtml(state.user?state.user.email:'')+') உருவாக்கப்பட்டுள்ளது, ஆனால் இன்னும் எந்தப் பள்ளிக்கோ துறைக்கோ நியமிக்கப்படவில்லை. அதிபர் "Superadmin Console" இல் உங்கள் கணக்கிற்குப் பள்ளியையும் பங்கையும் நியமிக்கும் வரை காத்திருக்கவும் — நியமித்தவுடன் இந்தப் பக்கம் தானாகவே திறக்கும்.</p>'+
     '</div></div>';
   document.getElementById('btnLogout').onclick=function(){ auth.signOut(); };
+
+  /* Register this signed-in-but-unassigned account so the superadmin can see
+     and assign it from the Superadmin Console, without needing to know in
+     advance how the account was created (this app's own flow, or a Firebase
+     Auth user made some other way). Safe to write repeatedly (merge). */
+  if(state.user && db){
+    db.collection('userSchoolMap').doc(state.user.uid).set({
+      email: state.user.email,
+      pending: true,
+      requestedAt: new Date().toISOString()
+    }, {merge:true}).catch(function(){ /* non-fatal: superadmin can still assign manually by UID */ });
+
+    if(!state.noRoleUnsub){
+      state.noRoleUnsub = userSchoolMapRef(state.user.uid).onSnapshot(function(doc){
+        var d = doc.exists ? doc.data() : null;
+        if(d && d.schoolId && d.role){
+          if(state.noRoleUnsub){ state.noRoleUnsub(); state.noRoleUnsub=null; }
+          routeAfterAuth();
+        }
+      });
+    }
+  }
 }
 
 function renderAccessBlocked(app){
@@ -1360,6 +1401,7 @@ function renderSchoolPicker(app){
 
 function renderSuperAdmin(app){
   subscribeSchoolsList(function(){ if(state.view==='superadmin') renderSuperAdmin(app); });
+  subscribePendingAccounts(function(){ if(state.view==='superadmin') renderSuperAdmin(app); });
 
   if(state.schoolsError){
     app.innerHTML =
@@ -1409,6 +1451,25 @@ function renderSuperAdmin(app){
     '</tbody></table>'+
     '<p class="hint">பெயர், ஆண்டு, அணுகல் தொடக்கம்/முடிவு ஆகியவற்றை நேரடியாக இப்பட்டியலில் திருத்தி Tab/Enter அழுத்தினால் தானாகச் சேமிக்கப்படும். திகதிகளைக் காலியாக விட்டால் அப்பள்ளிக்கு காலவரம்பு இல்லாமல் எப்போதும் அணுகலாம் (Superadmin கணக்கிற்கு இத்திகதிகள் பொருந்தாது).</p>'+
     '<div class="error-msg" id="checkMsg" style="margin-top:6px"></div>'+
+    (state.pendingAccounts && state.pendingAccounts.length ?
+    '<div class="pins-panel" id="pendingPanel" style="border-color:var(--amber,#c9861a)">'+
+      '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">பங்கு காத்திருக்கும் கணக்குகள் ('+state.pendingAccounts.length+')</div>'+
+      '<p class="hint" style="margin:0 0 12px">இந்த மின்னஞ்சல்கள் உள்நுழைந்துள்ளன, ஆனால் இன்னும் எந்தப் பள்ளிக்கோ பங்குக்கோ நியமிக்கப்படவில்லை. கீழே பள்ளியையும் பங்கையும் தேர்ந்தெடுத்து நியமிக்கவும் — அந்தக் கணக்கு தானாகவே திறக்கும்.</p>'+
+      '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பள்ளி</th><th>பங்கு</th><th></th></tr></thead><tbody>'+
+      state.pendingAccounts.map(function(p){
+        return '<tr><td>'+escapeHtml(p.email||p.id)+'</td>'+
+          '<td><select class="role-select" data-pend-school="'+p.id+'">'+
+            (state.schools||[]).map(function(s){ return '<option value="'+s.id+'">'+escapeHtml(s.name||s.id)+'</option>'; }).join('')+
+          '</select></td>'+
+          '<td><select class="role-select" data-pend-role="'+p.id+'">'+
+            DEPARTMENTS.map(function(d){ return '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>'; }).join('')+
+            '<option value="admin">அதிபர் / முகாமைத்துவம்</option>'+
+          '</select></td>'+
+          '<td><button class="btn-tiny" data-pend-assign="'+p.id+'" data-pend-email="'+escapeHtml(p.email||'')+'">நியமி</button></td></tr>';
+      }).join('')+
+      '</tbody></table>'+
+      '<div class="error-msg" id="pendMsg" style="margin-top:8px"></div>'+
+    '</div>' : '')+
     '<div class="pins-panel">'+
       '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">பயனர் → பள்ளி நியமிப்புகள்</div>'+
       '<p class="hint" style="margin:0 0 12px">ஒரு பயனர் எந்தப் பள்ளியில், எந்தப் பங்குடன் (role) இணைக்கப்பட்டுள்ளார் என்பதை இங்கு பார்க்கலாம்.</p>'+
@@ -1467,6 +1528,29 @@ function renderSuperAdmin(app){
       setTimeout(function(){ enterSchoolAsSuperAdmin(newSchoolId); }, 700);
     }).catch(function(err){ errEl.style.color=''; errEl.textContent = friendlyAuthError(err); btn.disabled = false; });
   };
+  app.querySelectorAll('[data-pend-assign]').forEach(function(btn){
+    btn.onclick=function(){
+      var puid = btn.getAttribute('data-pend-assign');
+      var email = btn.getAttribute('data-pend-email');
+      var schoolSel = app.querySelector('[data-pend-school="'+puid+'"]');
+      var roleSel = app.querySelector('[data-pend-role="'+puid+'"]');
+      var msgEl = document.getElementById('pendMsg');
+      if(!schoolSel || !schoolSel.value){ if(msgEl) msgEl.textContent='ஒரு பள்ளியைத் தேர்ந்தெடுக்கவும்.'; return; }
+      var schoolId = schoolSel.value, role = roleSel.value;
+      btn.disabled = true;
+      db.collection('schools').doc(schoolId).collection('users').doc(puid).set({email:email, role:role, uid:puid})
+        .then(function(){
+          return db.collection('userSchoolMap').doc(puid).set({schoolId:schoolId, role:role, email:email});
+        })
+        .then(function(){
+          if(msgEl){ msgEl.style.color='var(--sage)'; msgEl.textContent = (email||puid)+' நியமிக்கப்பட்டது ✓'; }
+        })
+        .catch(function(err){
+          btn.disabled = false;
+          if(msgEl){ msgEl.style.color=''; msgEl.textContent = 'நியமிக்க முடியவில்லை: '+err.message; }
+        });
+    };
+  });
   var toggleRecBtn = document.getElementById('btnToggleRecover');
   if(toggleRecBtn){
     toggleRecBtn.onclick=function(){
