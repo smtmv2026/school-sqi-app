@@ -212,10 +212,13 @@
   .pill{ display:inline-block; padding:2px 9px; border-radius:12px; font-size:.72rem; background:var(--gold-light); color:var(--maroon-deep); font-weight:600; }
   .center-wrap .login-card input{ margin-bottom:2px; }
 
-  /* ---- evidence / criteria report (printable) ---- */
-  .report-crit-block{ margin-bottom:26px; page-break-inside:avoid; }
+  /* ---- evidence / criteria report (printable) ----
+     Each indicator's evidence photo(s) are shown inline, directly under its
+     own text (image, then date, then note) — matching the sample report
+     layout — rather than collected into a separate photos section. */
+  .report-crit-block{ margin-bottom:26px; }
   .report-crit-title{ font-family:'Noto Serif Tamil',serif; font-weight:700; color:var(--maroon-deep); font-size:1.05rem; border-bottom:2px solid var(--gold); padding-bottom:6px; margin-bottom:12px; }
-  .report-ind{ display:flex; flex-direction:column; align-items:stretch; gap:8px; border-top:1px dashed var(--line); padding:14px 0; page-break-inside:avoid; margin-bottom:6px; }
+  .report-ind{ display:flex; flex-direction:column; align-items:stretch; gap:8px; border-top:1px dashed var(--line); padding:14px 0; margin-bottom:6px; }
   .report-ind:first-child{ border-top:none; }
   .report-ind-body{ flex:1; min-width:0; }
   .report-ind-title{ font-weight:600; margin-bottom:4px; }
@@ -223,11 +226,9 @@
   .report-ind-note{ font-size:.88rem; color:var(--ink-soft); white-space:pre-wrap; }
   .report-print-header{ display:none; }
 
-  /* ---- evidence photo pages: exactly two photo+detail entries per A4 sheet,
-     left-aligned text at full sheet width, no forced blank space/pages ---- */
-  .report-photo-section{ margin-top:10px; }
-  .report-page{ padding:4px 0; }
-  .report-entry{ page-break-inside:avoid; margin-bottom:26px; text-align:left; }
+  /* Each evidence entry (photo + date + note) stays together on one page,
+     even though the indicator around it may span a page break. */
+  .report-entry{ page-break-inside:avoid; margin:10px 0; text-align:left; }
   .report-entry:last-child{ margin-bottom:0; }
   .report-img, .report-img-empty{ display:block; width:500px; max-width:100%; height:350px; margin:0 0 12px; border-radius:5px; border:1px solid var(--line); }
   .report-img{ object-fit:cover; }
@@ -235,11 +236,6 @@
   @media print{
     @page{ size:A4; margin:0.6in 0.6in 0.6in 0.75in; }
     .report-print-header{ display:block; text-align:center; margin-bottom:20px; }
-    .report-crit-block{ break-inside:avoid; }
-    .report-ind{ break-inside:avoid; }
-    .report-photo-section > h2{ break-before:page; }
-    .report-page{ break-after:page; }
-    .report-page:last-child{ break-after:auto; }
     .report-entry{ break-inside:avoid; }
   }
 </style>
@@ -2146,16 +2142,34 @@ function renderAdminOverview(app){
 
 /* ---- school setup / user management ---- */
 
+/* One evidence entry (photo, date, note) rendered directly under its
+   indicator's own text — matching the sample report layout. */
+function reportEntryHtml(e){
+  var img = e.imageData
+    ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
+    : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
+  return '<div class="report-entry">'+
+    img+
+    '<div class="report-ind-body" style="margin-top:10px">'+
+      '<div style="font-size:.8rem;color:var(--gold);font-weight:600;margin-bottom:4px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
+      '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
+    '</div>'+
+  '</div>';
+}
+
 function reportIndicatorSummaryHtml(ind, refNum){
   var scoreTxt = (ind.score && ind.score>0) ? SCORE_LABELS[ind.score] : 'மதிப்பிடப்படவில்லை';
   var calcHtml = ind.calc ? calcTableHtml(ind) : '';
-  var entryCount = (ind.entries||[]).length;
+  var entries = (ind.entries||[]).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
   var numHtml = (refNum!=null) ? '<span class="report-ind-num">'+escapeHtml(refNum)+'</span> ' : '';
+  var entriesHtml = entries.length
+    ? entries.map(reportEntryHtml).join('')
+    : (ind.calc ? '' : '<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>');
   return '<div class="report-ind">'+
     '<div class="report-ind-title">'+numHtml+escapeHtml(ind.title)+'</div>'+
     (ind.calc ? '' : '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>')+
     calcHtml+
-    (entryCount ? '<p class="hint">சான்றுப் பதிவுகள்: '+entryCount+' (படங்கள் கீழே "சான்றுப் படங்கள்" பிரிவில் உள்ளன)</p>' : (ind.calc?'':'<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>'))+
+    entriesHtml+
   '</div>';
 }
 
@@ -2191,71 +2205,6 @@ function reportSingleCritSummaryHtml(deptId, critId){
   '</section>';
 }
 
-/* Flat list of every photo-evidence entry (across the criteria/indicators in
-   scope), each carrying its department/criteria/indicator label — used to
-   lay the evidence photos out strictly two-per-A4-page below. */
-function collectPhotoEntries(deptIds, scope){
-  var items = [];
-  deptIds.forEach(function(deptId){
-    var dept = deptById(deptId);
-    var dData = state.deptData[deptId];
-    if(!dept || !dData) return;
-    var critList = dData.criteria;
-    var critIdxMap = dData.criteria.map(function(c,i){ return i; });
-    if(scope.type==='crit'){
-      critIdxMap = critIdxMap.filter(function(i){ return dData.criteria[i].id===scope.critId; });
-      critList = critList.filter(function(c){ return c.id===scope.critId; });
-    }
-    critList.forEach(function(c, ci){
-      var realCIdx = critIdxMap[ci];
-      (c.indicators||[]).forEach(function(ind, ii){
-        var entries = (ind.entries||[]).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
-        entries.forEach(function(e){
-          items.push({deptName:dept.name, critTitle:c.title, indTitle:ind.title, indRef:indRefNum(deptId,realCIdx,ii), entry:e});
-        });
-      });
-    });
-  });
-  return items;
-}
-
-function reportEntryBlockHtml(item){
-  var e = item.entry;
-  var img = e.imageData
-    ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
-    : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
-  /* Heading (indicator text only) above the photo, date + user's note below
-     it — matching the sample report layout. The criterion's own title is
-     not repeated here: it's often a long sentence shared by several
-     indicators, so printing it above every single photo (sometimes many
-     per indicator) was just repetitive clutter. */
-  return '<div class="report-entry">'+
-    '<div class="report-ind-header">'+
-      '<div class="report-ind-title">'+(item.indRef?'<span class="report-ind-num">'+escapeHtml(item.indRef)+'</span> ':'')+escapeHtml(item.indTitle)+'</div>'+
-    '</div>'+
-    img+
-    '<div class="report-ind-body" style="margin-top:10px">'+
-      '<div style="font-size:.8rem;color:var(--gold);font-weight:600;margin-bottom:4px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
-      '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
-    '</div>'+
-  '</div>';
-}
-
-/* Exactly two photo+detail entries per A4 printed sheet, no blank pages:
-   entries are grouped in pairs, and only a page that actually holds an
-   entry gets a page-break after it (the very last page never forces one). */
-function reportPhotoPagesHtml(items){
-  if(!items.length) return '<p class="hint">சான்றுப் படங்கள் எதுவும் இடப்படவில்லை.</p>';
-  var pages = [];
-  for(var i=0;i<items.length;i+=2){ pages.push(items.slice(i,i+2)); }
-  return '<div class="report-photo-section">'+
-    '<h2 style="color:var(--maroon-deep)">சான்றுப் படங்கள்</h2>'+
-    pages.map(function(pg){
-      return '<div class="report-page">'+pg.map(reportEntryBlockHtml).join('')+'</div>';
-    }).join('')+
-  '</div>';
-}
-
 function renderEvidenceReport(app, scope){
   scope = scope || {type:'all'};
   var deptIds = (scope.type==='all') ? DEPARTMENTS.map(function(d){ return d.id; }) : [scope.deptId];
@@ -2273,7 +2222,6 @@ function renderEvidenceReport(app, scope){
   var bodyHtml;
   if(scope.type==='crit') bodyHtml = reportSingleCritSummaryHtml(scope.deptId, scope.critId);
   else bodyHtml = deptIds.map(reportDeptSummaryHtml).join('');
-  bodyHtml += reportPhotoPagesHtml(collectPhotoEntries(deptIds, scope));
 
   app.innerHTML =
     topbarHtml(
