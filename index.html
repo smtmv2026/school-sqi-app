@@ -1704,7 +1704,7 @@ function renderDeptView(app, deptId, opts){
     return;
   }
   if(!state.deptData[deptId]){
-    subscribeDept(deptId, function(){ if(state.view==='dept'||state.view==='adminDept'){ renderDeptView(app, deptId, opts); } });
+    subscribeDept(deptId, function(){ if((state.view==='dept'||state.view==='adminDept')&&!isTypingInApp()) renderApp(); });
     app.innerHTML = topbarHtml('') + '<div class="center-wrap"><p style="color:var(--ink-soft)">ஏற்றப்படுகிறது…</p></div>';
     return;
   }
@@ -1713,7 +1713,7 @@ function renderDeptView(app, deptId, opts){
   var grade = stats.grade;
 
   if(deptId==='d2'){
-    subscribeLtSupervisions(function(){ if(state.view==='dept'||state.view==='adminDept'){ renderDeptView(app, deptId, opts); } });
+    subscribeLtSupervisions(function(){ if((state.view==='dept'||state.view==='adminDept')&&!isTypingInApp()) renderApp(); });
     var lt = computeLtStats();
     app.innerHTML =
       topbarHtml('<button class="btn-ghost" id="btnBack">'+(opts.admin?'← முகாமைக்குத் திரும்பு':'← வெளியேறு')+'</button>') +
@@ -1883,8 +1883,8 @@ function deptCardHtml(d){
 }
 
 function renderAdminOverview(app){
-  DEPARTMENTS.forEach(function(d){ subscribeDept(d.id, function(){ if(state.view==='admin') renderAdminOverview(app); }); });
-  subscribeLtSupervisions(function(){ if(state.view==='admin') renderAdminOverview(app); });
+  DEPARTMENTS.forEach(function(d){ subscribeDept(d.id, function(){ if(state.view==='admin' && !isTypingInApp()) renderApp(); }); });
+  subscribeLtSupervisions(function(){ if(state.view==='admin' && !isTypingInApp()) renderApp(); });
   var errDepts = Object.keys(state.deptErrors);
   if(errDepts.length || state.ltSupervisionsError){
     app.innerHTML = topbarHtml('<button class="btn-ghost" id="btnLogout2">← வெளியேறு</button>') +
@@ -2037,7 +2037,7 @@ function renderEvidenceReport(app, scope){
   var deptIds = (scope.type==='all') ? DEPARTMENTS.map(function(d){ return d.id; }) : [scope.deptId];
   var missing = deptIds.filter(function(id){ return !state.deptData[id]; });
   if(missing.length){
-    missing.forEach(function(id){ subscribeDept(id, function(){ if(state.view==='report') renderEvidenceReport(app, scope); }); });
+    missing.forEach(function(id){ subscribeDept(id, function(){ if(state.view==='report') renderApp(); }); });
     app.innerHTML = topbarHtml('') + '<div class="center-wrap"><p style="color:var(--ink-soft)">தரவு ஏற்றப்படுகிறது…</p></div>';
     return;
   }
