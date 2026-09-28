@@ -1007,17 +1007,16 @@ function getSecondaryApp(){
 }
 
 /* Every school keeps its own users subcollection: schools/{schoolId}/users/{uid}.
-   To find which school(s) a signed-in account belongs to (without already
-   knowing the schoolId), we store a "uid" field on every such document and
-   run a collectionGroup query across all schools for that field. */
-function findMyMemberships(myUid){
-  return db.collectionGroup('users').where('uid','==',myUid).get().then(function(snap){
-    var rows = [];
-    snap.forEach(function(doc){
-      var schoolId = doc.ref.parent.parent.id;
-      rows.push({schoolId:schoolId, role:doc.data().role, email:doc.data().email});
-    });
-    return rows;
+   To find which school a signed-in account belongs to WITHOUT already
+   knowing the schoolId (needed right after login), a simple top-level
+   "userSchoolMap/{uid}" document is kept in sync alongside it — a single,
+   direct, by-ID read that needs no collectionGroup query and no fragile
+   Firestore Rule to get right. */
+function userSchoolMapRef(uid){ return db.collection('userSchoolMap').doc(uid); }
+
+function findMyMembership(myUid){
+  return userSchoolMapRef(myUid).get().then(function(doc){
+    return doc.exists ? doc.data() : null; // {schoolId, role, email}
   });
 }
 
@@ -1055,12 +1054,9 @@ function routeAfterAuth(){
     return;
   }
 
-  findMyMemberships(state.user.uid).then(function(rows){
-    if(!rows.length){ state.view='noRole'; renderApp(); return; }
-    if(rows.length===1){ enterSchoolAsMember(rows[0].schoolId, rows[0].role); return; }
-    state.mySchools = rows;
-    state.view = 'schoolPicker';
-    renderApp();
+  findMyMembership(state.user.uid).then(function(m){
+    if(!m || !m.schoolId){ state.view='noRole'; renderApp(); return; }
+    enterSchoolAsMember(m.schoolId, m.role);
   }).catch(function(err){
     state.view = 'authError';
     state.authErrorMessage = (err && (err.code || err.message)) || 'unknown error';
@@ -1126,6 +1122,7 @@ function migrateOldDataIntoNewSchool(){
       var data = doc.data();
       data.uid = doc.id;
       batch.set(newSchoolRef.collection('users').doc(doc.id), data);
+      batch.set(db.collection('userSchoolMap').doc(doc.id), {schoolId:schoolId, role:data.role, email:data.email});
     });
     return batch.commit();
   }).then(function(){
@@ -1938,7 +1935,10 @@ function renderSchoolSetup(app){
         var targetUid = sel.getAttribute('data-role-for');
         usersColRef().doc(targetUid).update({role:sel.value}).then(function(){
           var u = state.usersCache.find(function(x){ return x.uid===targetUid; });
-          if(u) u.role = sel.value;
+          if(u){
+            u.role = sel.value;
+            userSchoolMapRef(targetUid).set({schoolId:state.schoolId, role:sel.value, email:u.email}).catch(function(){});
+          }
         }).catch(function(err){ alert('பங்கை மாற்ற முடியவில்லை: '+err.message); });
       };
     });
@@ -1953,7 +1953,9 @@ function renderSchoolSetup(app){
       btn.onclick=function(){
         var targetUid = btn.getAttribute('data-uid');
         if(!confirm('இந்தப் பயனரின் அணுகல் பங்கை நீக்கவா? (இது Firebase Authentication இலிருந்து கணக்கையே நீக்காது — தேவைப்பட்டால் அதை Firebase console இல் தனியாக நீக்க வேண்டும்.)')) return;
-        usersColRef().doc(targetUid).delete().then(loadUsers).catch(function(err){ alert(err.message); });
+        usersColRef().doc(targetUid).delete().then(function(){
+          return userSchoolMapRef(targetUid).delete().catch(function(){});
+        }).then(loadUsers).catch(function(err){ alert(err.message); });
       };
     });
   }
@@ -1971,6 +1973,8 @@ function renderSchoolSetup(app){
     secAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
       var newUid = cred.user.uid;
       return usersColRef().doc(newUid).set({email:email, role:role, uid:newUid}).then(function(){
+        return userSchoolMapRef(newUid).set({schoolId:state.schoolId, role:role, email:email});
+      }).then(function(){
         return secAuth.signOut();
       });
     }).then(function(){
