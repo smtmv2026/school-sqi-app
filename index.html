@@ -1393,15 +1393,21 @@ function renderSuperAdmin(app){
       '<p><button type="button" class="btn-outline" id="btnLoadMap">பயனர்-பள்ளி நியமிப்புகளைக் காட்டு</button></p>'+
       '<div id="mapResult"></div>'+
     '</div>'+
-    '<div class="setup-notice">'+
-      '<strong>தொலைந்த பள்ளி ஆவணத்தை மீட்டமை (Restore tool):</strong> சில நேரங்களில் ஒரு பள்ளியின் துறை/பயனர் தரவு (departments, users) Firestore இல் முழுமையாக இருந்தும், அப்பள்ளியின் மேல்மட்ட ஆவணம் (schools/{ID} — பெயர், ஆண்டு) மட்டும் இல்லாமல் போய், அப்பள்ளி இந்தப் பட்டியலில் காட்டப்படாமல் போகலாம் (எ.கா. "நீக்கு" பொத்தான் தவறுதலாக அழுத்தப்பட்டால்). இங்கு அந்தப் பள்ளியின் ID ஐயும் சரியான பெயரையும் இட்டு மீட்டமைத்தால், அதன் கீழுள்ள அனைத்துத் துறைத் தரவும் (இழப்பு எதுவுமின்றி) உடனே மீண்டும் தோன்றும்.'+
-      '<div class="add-user-form" style="margin-top:10px">'+
-        '<div class="field" style="min-width:220px"><label>பள்ளி ID</label><input type="text" id="restSchoolId" placeholder="எ.கா. xlainu9fmul8a1f6"></div>'+
-        '<div class="field" style="flex:1;min-width:220px"><label>பள்ளியின் பெயர்</label><input type="text" id="restSchoolName" placeholder="St. Mary\'s Tamil Maha Vidyalaya, Bambalapitiya"></div>'+
-        '<div class="field" style="min-width:100px"><label>ஆண்டு</label><input type="text" id="restSchoolYear" placeholder="'+String(new Date().getFullYear())+'"></div>'+
-        '<button class="btn-primary" id="btnRestoreSchool">மீட்டமை</button>'+
+    '<div class="pins-panel">'+
+      '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">பள்ளி விபரங்களைச் சேர் / திருத்து</div>'+
+      '<p class="hint" style="margin:0 0 14px">பள்ளி ID ஐ இடவும் — ஏற்கெனவே உள்ள பள்ளி எனில் விபரங்கள் தானாகவே கீழே நிரப்பப்படும். பெயர், ஆண்டு, அணுகல் திகதிகளைத் தேவையானவாறு திருத்தி <strong>சேமி</strong> அழுத்தவும். ஒரு பள்ளியின் மேல்மட்ட ஆவணம் மட்டும் தொலைந்துபோயிருந்தால் (எ.கா. "நீக்கு" தவறுதலாக அழுத்தப்பட்டால்), இதே படிவத்தை அப்பள்ளியின் ID/பெயருடன் நிரப்பி சேமித்தால் போதும் — அதன் கீழுள்ள அனைத்துத் துறைத் தரவும் (இழப்பு எதுவுமின்றி) உடனே மீண்டும் தோன்றும்.</p>'+
+      '<div class="add-user-form">'+
+        '<div class="field" style="min-width:210px"><label>பள்ளி ID</label><input type="text" id="fixSchoolId" list="schoolIdList" placeholder="எ.கா. xlainu9fmul8a1f6"></div>'+
+        '<div class="field" style="flex:1;min-width:240px"><label>பள்ளியின் பெயர்</label><input type="text" id="fixSchoolName" placeholder="St. Mary\'s Tamil Maha Vidyalaya, Bambalapitiya"></div>'+
+        '<div class="field" style="min-width:90px"><label>ஆண்டு</label><input type="text" id="fixSchoolYear" placeholder="'+String(new Date().getFullYear())+'"></div>'+
+        '<div class="field" style="min-width:150px"><label>அணுகல் தொடக்கம்</label><input type="date" id="fixSchoolAccStart"></div>'+
+        '<div class="field" style="min-width:150px"><label>அணுகல் முடிவு</label><input type="date" id="fixSchoolAccEnd"></div>'+
+        '<button class="btn-primary" id="btnSaveSchoolFix">சேமி</button>'+
       '</div>'+
-      '<div class="error-msg" id="restoreMsg" style="margin-top:6px"></div>'+
+      '<datalist id="schoolIdList">'+
+        (state.schools||[]).map(function(s){ return '<option value="'+escapeHtml(s.id)+'">'+escapeHtml(s.name||'(பெயரிடப்படாதது)')+'</option>'; }).join('')+
+      '</datalist>'+
+      '<div class="error-msg" id="fixSchoolMsg" style="margin-top:8px"></div>'+
     '</div>';
 
   document.getElementById('btnLogoutSA').onclick=function(){
@@ -1519,38 +1525,53 @@ function renderSuperAdmin(app){
       });
     };
   }
-  var restBtn = document.getElementById('btnRestoreSchool');
-  if(restBtn){
-    restBtn.onclick=function(){
-      var id = document.getElementById('restSchoolId').value.trim();
-      var name = document.getElementById('restSchoolName').value.trim();
-      var year = document.getElementById('restSchoolYear').value.trim() || String(new Date().getFullYear());
-      var msgEl = document.getElementById('restoreMsg');
+  var fixIdEl = document.getElementById('fixSchoolId');
+  if(fixIdEl){
+    fixIdEl.addEventListener('change', function(){
+      var id = fixIdEl.value.trim();
+      var existing = (state.schools||[]).find(function(s){ return s.id===id; });
+      var msgEl = document.getElementById('fixSchoolMsg');
+      msgEl.style.color=''; msgEl.textContent='';
+      if(existing){
+        document.getElementById('fixSchoolName').value = existing.name || '';
+        document.getElementById('fixSchoolYear').value = existing.year || '';
+        document.getElementById('fixSchoolAccStart').value = existing.accessStart || '';
+        document.getElementById('fixSchoolAccEnd').value = existing.accessEnd || '';
+        msgEl.textContent = 'ஏற்கெனவே உள்ள பள்ளி — விபரங்கள் கீழே நிரப்பப்பட்டுள்ளன. திருத்திச் சேமிக்கலாம்.';
+      }
+    });
+  }
+  var saveFixBtn = document.getElementById('btnSaveSchoolFix');
+  if(saveFixBtn){
+    saveFixBtn.onclick=function(){
+      var id = document.getElementById('fixSchoolId').value.trim();
+      var name = document.getElementById('fixSchoolName').value.trim();
+      var year = document.getElementById('fixSchoolYear').value.trim() || String(new Date().getFullYear());
+      var accStart = document.getElementById('fixSchoolAccStart').value || null;
+      var accEnd = document.getElementById('fixSchoolAccEnd').value || null;
+      var msgEl = document.getElementById('fixSchoolMsg');
       msgEl.style.color='';
       if(!id || !name){ msgEl.textContent='பள்ளி ID மற்றும் பெயர் இரண்டையும் இடவும்.'; return; }
-      msgEl.textContent = 'சரிபார்க்கப்படுகிறது…';
-      db.collection('schools').doc(id).get().then(function(existing){
-        if(existing.exists){
-          msgEl.textContent = 'இந்த ID இல் ஏற்கெனவே ஒரு பள்ளி ஆவணம் உள்ளது — மேலே உள்ள பட்டியலில் "'+(existing.data().name||id)+'" எனக் காணலாம். ஏற்கெனவே உள்ளதை மேலெழுத இந்தக் கருவி பயன்படுத்தப்படாது.';
-          return;
-        }
-        return db.collection('schools').doc(id).set({
-          name: name,
-          year: year,
-          logoData: null,
-          createdAt: new Date().toISOString(),
-          createdBy: state.user ? state.user.email : '',
-          restoredAt: new Date().toISOString()
-        }).then(function(){
-          msgEl.style.color='var(--sage)';
-          msgEl.textContent = '"'+name+'" மீட்டமைக்கப்பட்டது ✓ — அதன் கீழுள்ள துறைத் தரவு இழப்பின்றி அப்படியே உள்ளது. மேலே உள்ள பட்டியலில் இப்போது தோன்றும்; "தரவு சரிபார்" பொத்தானை அழுத்தி உறுதி செய்யவும்.';
-          document.getElementById('restSchoolId').value='';
-          document.getElementById('restSchoolName').value='';
-          document.getElementById('restSchoolYear').value='';
-        });
+      var existing = (state.schools||[]).find(function(s){ return s.id===id; });
+      saveFixBtn.disabled = true;
+      msgEl.textContent = 'சேமிக்கப்படுகிறது…';
+      var payload = {
+        name: name,
+        year: year,
+        accessStart: accStart,
+        accessEnd: accEnd,
+        updatedAt: new Date().toISOString(),
+        updatedBy: state.user ? state.user.email : ''
+      };
+      if(!existing){ payload.logoData = null; payload.createdAt = new Date().toISOString(); payload.createdBy = state.user ? state.user.email : ''; }
+      db.collection('schools').doc(id).set(payload, {merge:true}).then(function(){
+        msgEl.style.color='var(--sage)';
+        msgEl.textContent = '"'+name+'" சேமிக்கப்பட்டது ✓'+(existing ? '' : ' — இது புதிதாக மீட்டமைக்கப்பட்டது; அதன் கீழுள்ள துறைத் தரவு இழப்பின்றி அப்படியே உள்ளது.')+' மேலே உள்ள பட்டியலில் இப்போது புதுப்பிக்கப்பட்டு தெரியும்.';
+        saveFixBtn.disabled = false;
       }).catch(function(err){
         msgEl.style.color='';
-        msgEl.textContent = 'மீட்டமைக்க முடியவில்லை: '+err.message;
+        msgEl.textContent = 'சேமிக்க முடியவில்லை: '+err.message;
+        saveFixBtn.disabled = false;
       });
     };
   }
