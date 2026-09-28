@@ -1381,23 +1381,31 @@ function renderSuperAdmin(app){
     '<div class="topbar-actions"><button class="btn-ghost" id="btnLogoutSA">← வெளியேறு</button></div></div>'+
     '<div class="dept-header"><h1>பள்ளிகள்</h1>'+
     '<p class="dept-sub">ஒவ்வொரு பள்ளியும் அதற்கே உரிய தனித்தனி தரவுத்தளத்தை (துறைகள், சான்றுகள், பயனர்கள்) கொண்டிருக்கும்.</p></div>'+
-    '<div class="add-user-form">'+
-      '<div class="field" style="flex:1;min-width:260px"><label>புதிய பள்ளியின் பெயர்</label><input type="text" id="newSchoolName" placeholder="எ.கா. St. Mary\'s Tamil Maha Vidyalaya"></div>'+
-      '<button class="btn-primary" id="btnCreateSchool">+ பள்ளியைச் சேர்</button>'+
+    '<div class="pins-panel">'+
+      '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">புதிய பள்ளியைச் சேர்</div>'+
+      '<p class="hint" style="margin:0 0 12px">பள்ளியின் பெயரை இடவும். விரும்பினால், அப்பள்ளியின் முதல் நிர்வாகி (admin) உள்நுழையும் மின்னஞ்சல்/கடவுச்சொல்லையும் இங்கேயே உருவாக்கலாம் — அதைப் பின்னர் அப்பள்ளியின் "பள்ளி அமைப்பு" பக்கத்திலும் சேர்க்கலாம்.</p>'+
+      '<div class="add-user-form">'+
+        '<div class="field" style="flex:1;min-width:220px"><label>பள்ளியின் பெயர்</label><input type="text" id="newSchoolName" placeholder="எ.கா. St. Mary\'s Tamil Maha Vidyalaya"></div>'+
+        '<div class="field" style="min-width:200px"><label>நிர்வாகி மின்னஞ்சல் (விரும்பினால்)</label><input type="text" id="newSchoolAdminEmail" placeholder="admin@example.com"></div>'+
+        '<div class="field" style="min-width:160px"><label>கடவுச்சொல் (விரும்பினால்)</label><input type="password" id="newSchoolAdminPass" placeholder="6+ எழுத்துகள்"></div>'+
+        '<button class="btn-primary" id="btnCreateSchool">சேமி</button>'+
+      '</div>'+
+      '<div class="error-msg" id="saErr" style="margin-top:8px"></div>'+
     '</div>'+
-    '<div class="error-msg" id="saErr" style="margin-bottom:10px"></div>'+
-    '<table class="setup-table"><thead><tr><th>பள்ளி</th><th>ஆண்டு</th><th>அணுகல் தொடக்கம்</th><th>அணுகல் முடிவு</th><th>ID</th><th></th></tr></thead>'+
+    '<table class="setup-table"><thead><tr><th>பள்ளி</th><th>ஆண்டு</th><th>அணுகல் தொடக்கம்</th><th>அணுகல் முடிவு</th><th>நிலை</th><th>ID</th><th></th></tr></thead>'+
     '<tbody id="schoolsTbody">'+
       (state.schools.length ? state.schools.map(function(s){
+        var st = schoolAccessStatus(s);
         return '<tr><td><input type="text" class="calc-input" style="width:100%;text-align:left" data-name-edit="'+s.id+'" value="'+escapeHtml(s.name||'')+'"></td>'+
           '<td><input type="text" class="calc-input" style="width:60px" data-year-edit="'+s.id+'" value="'+escapeHtml(s.year||'')+'"></td>'+
           '<td><input type="date" class="calc-input" style="width:130px" data-acc-start="'+s.id+'" value="'+escapeHtml(s.accessStart||'')+'"></td>'+
           '<td><input type="date" class="calc-input" style="width:130px" data-acc-end="'+s.id+'" value="'+escapeHtml(s.accessEnd||'')+'"></td>'+
+          '<td><span class="badge small '+st.cls+'">'+st.label+'</span></td>'+
           '<td style="font-size:.72rem;color:var(--ink-soft)">'+escapeHtml(s.id)+'</td>'+
-          '<td style="white-space:nowrap"><button class="btn-tiny" data-open="'+s.id+'">திற →</button> '+
+          '<td style="white-space:nowrap"><button class="btn-tiny" data-open="'+s.id+'">திற / திருத்து →</button> '+
           '<button class="btn-tiny" data-check="'+s.id+'" data-name="'+escapeHtml(s.name||'')+'">தரவு சரிபார்</button> '+
           '<button class="btn-tiny" data-del="'+s.id+'" data-name="'+escapeHtml(s.name||'')+'">நீக்கு</button></td></tr>';
-      }).join('') : '<tr><td colspan="6" style="color:var(--ink-soft)">இதுவரை பள்ளிகள் எதுவும் இல்லை.</td></tr>')+
+      }).join('') : '<tr><td colspan="7" style="color:var(--ink-soft)">இதுவரை பள்ளிகள் எதுவும் இல்லை.</td></tr>')+
     '</tbody></table>'+
     '<p class="hint">பெயர், ஆண்டு, அணுகல் தொடக்கம்/முடிவு ஆகியவற்றை நேரடியாக இப்பட்டியலில் திருத்தி Tab/Enter அழுத்தினால் தானாகச் சேமிக்கப்படும். திகதிகளைக் காலியாக விட்டால் அப்பள்ளிக்கு காலவரம்பு இல்லாமல் எப்போதும் அணுகலாம் (Superadmin கணக்கிற்கு இத்திகதிகள் பொருந்தாது).</p>'+
     '<div class="error-msg" id="checkMsg" style="margin-top:6px"></div>'+
@@ -1428,15 +1436,36 @@ function renderSuperAdmin(app){
   document.getElementById('btnCreateSchool').onclick=function(){
     var nameEl = document.getElementById('newSchoolName');
     var name = nameEl.value.trim();
+    var adminEmail = document.getElementById('newSchoolAdminEmail').value.trim();
+    var adminPass = document.getElementById('newSchoolAdminPass').value;
     var errEl = document.getElementById('saErr');
     var btn = document.getElementById('btnCreateSchool');
     errEl.textContent='';
     if(!name){ errEl.textContent='பள்ளியின் பெயரை இடவும்.'; return; }
+    if(adminEmail && !adminPass){ errEl.textContent='நிர்வாகி மின்னஞ்சலுக்கு ஒரு கடவுச்சொல்லையும் இடவும்.'; return; }
+    if(adminPass && adminPass.length<6){ errEl.textContent='கடவுச்சொல் 6 எழுத்துகளுக்கு மேல் இருக்க வேண்டும்.'; return; }
     btn.disabled = true;
+    var newSchoolId;
     createSchool(name).then(function(schoolId){
+      newSchoolId = schoolId;
+      if(!adminEmail) return;
+      var sec = getSecondaryApp();
+      var secAuth = sec.auth();
+      return secAuth.createUserWithEmailAndPassword(adminEmail, adminPass).then(function(cred){
+        var newUid = cred.user.uid;
+        return usersColRef(schoolId).doc(newUid).set({email:adminEmail, role:'admin', uid:newUid}).then(function(){
+          return userSchoolMapRef(newUid).set({schoolId:schoolId, role:'admin', email:adminEmail});
+        }).then(function(){ return secAuth.signOut(); });
+      });
+    }).then(function(){
+      var savedName = nameEl.value.trim();
       nameEl.value='';
-      enterSchoolAsSuperAdmin(schoolId);
-    }).catch(function(err){ errEl.textContent = err.message; btn.disabled = false; });
+      document.getElementById('newSchoolAdminEmail').value='';
+      document.getElementById('newSchoolAdminPass').value='';
+      errEl.style.color='var(--sage)';
+      errEl.textContent = '"'+savedName+'" சேமிக்கப்பட்டது ✓ — இப்போது திறக்கிறது…';
+      setTimeout(function(){ enterSchoolAsSuperAdmin(newSchoolId); }, 700);
+    }).catch(function(err){ errEl.style.color=''; errEl.textContent = friendlyAuthError(err); btn.disabled = false; });
   };
   var toggleRecBtn = document.getElementById('btnToggleRecover');
   if(toggleRecBtn){
