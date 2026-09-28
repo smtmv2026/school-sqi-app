@@ -231,7 +231,10 @@
   .report-ind-title{ font-weight:600; background:#F4EEDF; border-left:3px solid var(--gold); padding:7px 12px; border-radius:3px; font-size:.95rem; }
   .report-ind-score{ margin-top:6px; }
   .rb-cont{ font-size:.78rem; color:var(--ink-soft); border-bottom:1px dashed var(--line); padding-bottom:4px; margin-bottom:8px; }
-  .rb-img{ display:block; margin:0 auto 6px; width:auto; max-width:100%; object-fit:contain; border-radius:3px; border:1px solid var(--line); }
+  /* every evidence photo uses the same fixed 500 x 350 frame; the whole photo is
+     shown (never cropped) and centred inside the frame */
+  .rb-imgbox{ width:500px; height:350px; margin:0 auto 6px; background:#F2ECDD; border:1px solid var(--line); border-radius:3px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .rb-img{ display:block; width:100%; height:100%; object-fit:contain; }
   .report-date{ background:#F4EEDF; padding:4px 12px; font-size:.82rem; color:var(--gold); font-weight:700; border-radius:3px; }
   .report-ind-note{ font-size:.9rem; color:var(--ink); white-space:pre-wrap; padding:4px 12px 0; }
   .report-ind-note em{ color:var(--ink-soft); }
@@ -1760,7 +1763,6 @@ function renderAdminOverview(app){
 
 /* ---- evidence report: build blocks, then lay them out on exact A4 sheets ---- */
 
-var MM_PX = 96/25.4;
 var reportToken = 0;
 
 function rbEl(html, kind, ctx){
@@ -1813,9 +1815,7 @@ function buildReportBlocks(scope){
           var date = '<div class="report-date">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>';
           var note = '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>';
           if(e.imageData){
-            var blk = rbEl('<div class="rb"><img class="rb-img" alt="சான்று படம்">'+date+note+'</div>', 'photo', ind.title);
-            blk.src = e.imageData;
-            blocks.push(blk);
+            blocks.push(rbEl('<div class="rb"><div class="rb-imgbox"><img class="rb-img" src="'+e.imageData+'" alt="சான்று படம்"></div>'+date+note+'</div>', 'photo', ind.title));
           } else {
             blocks.push(rbEl('<div class="rb">'+date+note+'</div>', 'text', ind.title));
           }
@@ -1827,18 +1827,14 @@ function buildReportBlocks(scope){
 }
 
 function paginateReport(container, blocks, token){
-  var contentW = (210-24)*MM_PX;
-  var ABS_MAX = 150*MM_PX, IDEAL = 92*MM_PX, MIN = 48*MM_PX, HARD_MIN = 22*MM_PX;
-
-  return Promise.all(blocks.filter(function(b){ return b.kind==='photo'; }).map(function(b){
-    return loadImg(b.src).then(function(img){
-      var ratio = (img && img.naturalWidth) ? img.naturalHeight/img.naturalWidth : 0.75;
-      b.img = b.el.querySelector('.rb-img');
-      b.img.src = b.src;
-      b.maxH = Math.min(ABS_MAX, contentW*0.94*ratio);
-      b.minH = Math.min(MIN, b.maxH);
-      b.ideal = Math.min(IDEAL, b.maxH);
-    });
+  /* Photos have a fixed 500 x 350 size, so a block either fits in the space
+     left on a sheet or moves (with its titles) to the next sheet. Sheets are
+     only created when something is placed on them, so there is never a
+     blank page. */
+  var imgs = [];
+  blocks.forEach(function(b){ b.el.querySelectorAll('img').forEach(function(im){ imgs.push(im); }); });
+  return Promise.all(imgs.map(function(im){
+    return im.complete ? null : new Promise(function(r){ im.onload = im.onerror = r; });
   })).then(function(){
     return (document.fonts && document.fonts.ready) ? document.fonts.ready : null;
   }).then(function(){
@@ -1850,29 +1846,15 @@ function paginateReport(container, blocks, token){
       var body = document.createElement('div'); body.className='sheet-body';
       var flow = document.createElement('div'); flow.className='sheet-flow';
       body.appendChild(flow); sh.appendChild(body); container.appendChild(sh);
-      var p = {sheet:sh, body:body, flow:flow, photos:[]};
+      var p = {sheet:sh, body:body, flow:flow};
       pages.push(p); return p;
     }
-    function over(p){ return p.flow.offsetHeight - p.body.clientHeight; }
-    function setH(b, h){ b.h = h; b.img.style.height = Math.floor(h)+'px'; }
-    function squeeze(p, b, floor){
-      var o = over(p);
-      if(o<=0) return true;
-      var h = b.h - o - 1;
-      if(h < floor) return false;
-      setH(b, h);
-      return over(p) <= 0;
-    }
+    function overflows(p){ return p.flow.offsetHeight > p.body.clientHeight; }
 
     var page = newPage();
     blocks.forEach(function(b){
-      if(b.kind==='photo') setH(b, b.ideal);
       page.flow.appendChild(b.el);
-      if(over(page) <= 0 || (b.kind==='photo' && squeeze(page, b, b.minH))){
-        if(b.kind==='photo') page.photos.push(b);
-        return;
-      }
-      /* does not fit: move it (with any titles that belong to it) to a new sheet */
+      if(!overflows(page)) return;
       page.flow.removeChild(b.el);
       var carry = [];
       while(page.flow.lastChild && page.flow.lastChild._kind==='head'){
@@ -1887,27 +1869,8 @@ function paginateReport(container, blocks, token){
         page.flow.appendChild(cont);
       }
       carry.forEach(function(c){ page.flow.appendChild(c); });
-      if(b.kind==='photo') setH(b, b.ideal);
       page.flow.appendChild(b.el);
-      if(b.kind==='photo'){ squeeze(page, b, HARD_MIN); page.photos.push(b); }
     });
-
-    /* fill: use any empty space on a sheet to enlarge its photos */
-    pages.forEach(function(p){
-      for(var i=0;i<4;i++){
-        var free = -over(p) - 2;
-        if(free < 4) break;
-        var grow = p.photos.filter(function(b){ return b.h < b.maxH-1; });
-        if(!grow.length) break;
-        var share = free/grow.length;
-        grow.forEach(function(b){ setH(b, Math.min(b.maxH, b.h+share)); });
-      }
-      for(var j=0;j<20 && over(p)>0 && p.photos.length;j++){
-        p.photos.forEach(function(b){ setH(b, Math.max(HARD_MIN, b.h-3)); });
-      }
-    });
-
-    /* never leave an empty sheet */
     pages.forEach(function(p){ if(!p.flow.childNodes.length) p.sheet.parentNode.removeChild(p.sheet); });
   });
 }
