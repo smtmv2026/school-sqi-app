@@ -1973,18 +1973,27 @@ function deptCardHtml(d){
 
 function renderWelcomeGate(app){
   subscribeSchoolMeta(function(){ if(state.view==='admin' && state.showWelcomeGate) renderApp(); });
+  var schoolName = (state.school && state.school.name) ? state.school.name : '';
   app.innerHTML =
     topbarHtml('<button class="btn-ghost" id="btnLogout2">← வெளியேறு</button>') +
     '<div class="center-wrap"><div class="login-card" style="text-align:center">'+
       '<h1 style="margin-bottom:6px">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு</h1>'+
-      '<p class="hint" style="margin:0 0 22px">'+escapeHtml(state.school&&state.school.name?state.school.name:'')+'</p>'+
-      '<button class="btn-primary" id="btnEnterSchool" style="min-width:180px;font-size:1.05rem">ENTER</button>'+
+      '<p class="hint" style="margin:0 0 22px">'+escapeHtml(schoolName)+'</p>'+
+      '<button class="btn-primary" id="btnEnterSchool" style="min-width:220px;font-size:1.05rem">'+
+        (schoolName ? escapeHtml(schoolName)+' — திற' : 'ENTER')+
+      '</button>'+
+      (state.isSuperAdmin ?
+        '<div style="margin-top:14px">'+
+          '<button class="btn-outline" id="btnGateSuperadmin" style="min-width:220px">🛠️ Superadmin Console</button>'+
+        '</div>' : '')+
     '</div></div>';
   document.getElementById('btnLogout2').onclick=function(){ auth.signOut(); };
   document.getElementById('btnEnterSchool').onclick=function(){
     state.showWelcomeGate = false;
     renderApp();
   };
+  var gateSA = document.getElementById('btnGateSuperadmin');
+  if(gateSA){ gateSA.onclick=function(){ leaveSchoolContext(); state.view='superadmin'; renderApp(); }; }
 }
 
 function renderAdminOverview(app){
