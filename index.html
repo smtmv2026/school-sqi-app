@@ -684,6 +684,7 @@ var state = {
   ltSupervisions:null,     // array of records from supervision.html's lt_supervisions collection, once loaded
   ltSupervisionsUnsub:null,
   ltSupervisionsError:null,
+  showWelcomeGate:false,    // true right after login, before the "ENTER" screen is dismissed
   noRoleUnsub:null,         // live listener while on the "no role assigned yet" screen
   pendingAccounts:null,     // superadmin: accounts signed in but waiting for a school/role
   pendingAccountsUnsub:null
@@ -985,6 +986,7 @@ function leaveSchoolContext(){
   if(state.noRoleUnsub){ state.noRoleUnsub(); state.noRoleUnsub=null; }
   if(state.pendingAccountsUnsub){ state.pendingAccountsUnsub(); state.pendingAccountsUnsub=null; }
   state.pendingAccounts = null;
+  state.showWelcomeGate = false;
   state.deptData = {};
   state.deptErrors = {};
   state.ltSupervisions = null;
@@ -1051,7 +1053,7 @@ function enterSchoolAsMember(schoolId, role){
   state.schoolId = schoolId;
   state.role = role;
   subscribeSchoolMeta(function(){ renderApp(); });
-  if(role==='admin'){ state.view='admin'; renderApp(); }
+  if(role==='admin'){ state.showWelcomeGate = true; state.view='admin'; renderApp(); }
   else if(deptById(role)){ state.currentDept=role; state.view='dept'; subscribeDept(role, function(){ if((state.view==='dept'||state.view==='adminDept')&&!isTypingInApp()) renderApp(); }); renderApp(); }
   else { state.view='noRole'; renderApp(); }
 }
@@ -1076,6 +1078,7 @@ function routeAfterAuth(){
      rather than being tied to just one. */
   if(isSuperAdminEmail(state.user.email)){
     state.isSuperAdmin = true;
+    state.showWelcomeGate = true;
     enterSchoolAsSuperAdmin(SUPERADMIN_HOME_SCHOOL_ID);
     return;
   }
@@ -1213,6 +1216,7 @@ function renderApp(){
   if(state.view==='schoolPicker'){ renderSchoolPicker(app); return; }
   if(state.view==='dept'){ renderDeptView(app, state.currentDept, {admin:false}); wireSwitchSchoolBtn(); return; }
   if(state.view==='adminDept'){ renderDeptView(app, state.currentDept, {admin:true}); wireSwitchSchoolBtn(); return; }
+  if(state.view==='admin' && state.showWelcomeGate){ renderWelcomeGate(app); wireSwitchSchoolBtn(); return; }
   if(state.view==='admin'){ renderAdminOverview(app); wireSwitchSchoolBtn(); return; }
   if(state.view==='setup'){ renderSchoolSetup(app); wireSwitchSchoolBtn(); return; }
   if(state.view==='report'){ renderEvidenceReport(app, state.reportScope); wireSwitchSchoolBtn(); return; }
@@ -1964,6 +1968,22 @@ function deptCardHtml(d){
     '<div class="bar"><div class="bar-fill '+(grade?grade.cls:'')+'" style="width:'+(stats.percent||0)+'%"></div></div>'+
     '<div class="dept-card-foot"><span>'+(stats.percent!=null?stats.percent+'%':'—')+'</span><span>'+stats.scored+'/'+stats.total+' சுட்டிகள்</span></div>'+
   '</button>';
+}
+
+function renderWelcomeGate(app){
+  subscribeSchoolMeta(function(){ if(state.view==='admin' && state.showWelcomeGate) renderApp(); });
+  app.innerHTML =
+    topbarHtml('<button class="btn-ghost" id="btnLogout2">← வெளியேறு</button>') +
+    '<div class="center-wrap"><div class="login-card" style="text-align:center">'+
+      '<h1 style="margin-bottom:6px">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு</h1>'+
+      '<p class="hint" style="margin:0 0 22px">'+escapeHtml(state.school&&state.school.name?state.school.name:'')+'</p>'+
+      '<button class="btn-primary" id="btnEnterSchool" style="min-width:180px;font-size:1.05rem">ENTER</button>'+
+    '</div></div>';
+  document.getElementById('btnLogout2').onclick=function(){ auth.signOut(); };
+  document.getElementById('btnEnterSchool').onclick=function(){
+    state.showWelcomeGate = false;
+    renderApp();
+  };
 }
 
 function renderAdminOverview(app){
