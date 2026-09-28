@@ -244,9 +244,9 @@
 var REAL_SEED = {
   d1: [
     ['கலைத்திட்ட நோக்கத்தை அண்மித்தல் (ஆரம்பக் கல்வி)', [
-      'முதன்மைநிலை 1க்குரிய தேர்ச்சிகள் 40 உம் அடைந்த மாணவர் %',
-      'முதன்மைநிலை 2க்குரிய தேர்ச்சிகள் 52 உம் அடைந்த மாணவர் %',
-      'முதன்மைநிலை 3க்குரிய தேர்ச்சிகள் 55 உம் அடைந்த மாணவர் %'
+      'முதன்மைநிலை 1க்குரிய தேர்ச்சிகள் 48 உம் அடைந்த மாணவர் %',
+      'முதன்மைநிலை 2க்குரிய தேர்ச்சிகள் 50 உம் அடைந்த மாணவர் %',
+      'முதன்மைநிலை 3க்குரிய தேர்ச்சிகள் 52 உம் அடைந்த மாணவர் %'
     ]],
     ['தேசிய மட்டத்திலான பரீட்சைகளில் உயர் பெறுபேறுகளைப் பெற்றுக்கொள்ளல்', [
       'தரம் 5 புலமைப்பரிசில் பரீட்சையில் 70 புள்ளிக்கு மேல் பெற்றோர் %',
@@ -781,8 +781,26 @@ function migrateIndicator(ind){
   }
   delete ind.imageData; delete ind.imageName; delete ind.note;
 }
+/* முதன்மைநிலைத் தேர்ச்சிகளின் எண்ணிக்கை திருத்தம் (40/52/55 → 48/50/52).
+   ஏற்கெனவே Firestore இல் சேமிக்கப்பட்ட பாடசாலைகளின் சுட்டித் தலைப்புகளையும்
+   புள்ளிகள், சான்றுகள் இழக்காமல் புதுப்பிக்கிறது. */
+var DEPT1_TITLE_RENAMES = {
+  'முதன்மைநிலை 1க்குரிய தேர்ச்சிகள் 40 உம் அடைந்த மாணவர் %': 'முதன்மைநிலை 1க்குரிய தேர்ச்சிகள் 48 உம் அடைந்த மாணவர் %',
+  'முதன்மைநிலை 2க்குரிய தேர்ச்சிகள் 52 உம் அடைந்த மாணவர் %': 'முதன்மைநிலை 2க்குரிய தேர்ச்சிகள் 50 உம் அடைந்த மாணவர் %',
+  'முதன்மைநிலை 3க்குரிய தேர்ச்சிகள் 55 உம் அடைந்த மாணவர் %': 'முதன்மைநிலை 3க்குரிய தேர்ச்சிகள் 52 உம் அடைந்த மாணவர் %'
+};
+function renameDept1PrimaryIndicators(dData){
+  var changed = false;
+  dData.criteria.forEach(function(c){
+    c.indicators.forEach(function(ind){
+      if(DEPT1_TITLE_RENAMES[ind.title]){ ind.title = DEPT1_TITLE_RENAMES[ind.title]; changed = true; }
+    });
+  });
+  return changed;
+}
 function migrateDeptData(dData, deptId){
   if(!dData || !dData.criteria) return dData;
+  if(deptId==='d1') renameDept1PrimaryIndicators(dData);
   dData.criteria.forEach(function(c){ c.indicators.forEach(migrateIndicator); });
   if(deptId==='d1') attachDept1Calc(dData);
   return dData;
@@ -921,7 +939,10 @@ function subscribeDept(deptId, onChange){
     delete state.deptErrors[deptId];
     if(snap.metadata.hasPendingWrites) return; // our own optimistic write echoing back
     if(snap.exists){
-      state.deptData[deptId] = migrateDeptData(snap.data(), deptId);
+      var raw = snap.data();
+      var needsRename = (deptId==='d1') && JSON.stringify(raw).indexOf('தேர்ச்சிகள் 40 உம்')!==-1;
+      state.deptData[deptId] = migrateDeptData(raw, deptId);
+      if(needsRename) deptsColRef().doc(deptId).set(state.deptData[deptId]).catch(function(){});
     } else {
       state.deptData[deptId] = buildEmptyDeptData(deptId);
       deptsColRef().doc(deptId).set(state.deptData[deptId]).catch(function(){});
