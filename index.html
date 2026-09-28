@@ -212,24 +212,34 @@
   .pill{ display:inline-block; padding:2px 9px; border-radius:12px; font-size:.72rem; background:var(--gold-light); color:var(--maroon-deep); font-weight:600; }
   .center-wrap .login-card input{ margin-bottom:2px; }
 
-  /* ---- evidence / criteria report (printable) ---- */
-  .report-crit-block{ margin-bottom:26px; page-break-inside:avoid; }
-  .report-crit-title{ font-family:'Noto Serif Tamil',serif; font-weight:700; color:var(--maroon-deep); font-size:1.05rem; border-bottom:2px solid var(--gold); padding-bottom:6px; margin-bottom:12px; }
-  .report-ind{ display:flex; flex-direction:column; align-items:stretch; gap:8px; border-top:1px dashed var(--line); padding:14px 0; page-break-inside:avoid; margin-bottom:6px; }
-  .report-ind:first-child{ border-top:none; }
-  .report-entry{ display:flex; gap:14px; align-items:flex-start; padding:8px 0 8px 10px; border-left:2px solid var(--gold-light); page-break-inside:avoid; }
-  .report-img, .report-img-empty{ width:150px; height:110px; flex:0 0 auto; border-radius:5px; border:1px solid var(--line); }
-  .report-img{ object-fit:cover; }
-  .report-img-empty{ display:flex; align-items:center; justify-content:center; background:#F2ECDD; color:var(--ink-soft); font-size:.75rem; text-align:center; padding:6px; }
-  .report-ind-body{ flex:1; min-width:0; }
-  .report-ind-title{ font-weight:600; margin-bottom:4px; }
-  .report-ind-note{ font-size:.88rem; color:var(--ink-soft); white-space:pre-wrap; }
+  /* ---- evidence / criteria report (printable, A4) ----
+     One large evidence photo per entry, centred, with the date and the
+     note BELOW it (about two entries per A4 page). Nothing big is marked
+     "keep together" and no forced page breaks are used, so the browser
+     never has to push a whole block to a new page and leave a blank one. */
+  .report-dept-title{ font-family:'Noto Serif Tamil',serif; color:var(--maroon-deep); font-size:1.3rem; margin:18px 0 10px; break-after:avoid; page-break-after:avoid; }
+  .report-crit-block{ margin-bottom:20px; }
+  .report-crit-title{ font-family:'Noto Serif Tamil',serif; font-weight:700; color:var(--maroon-deep); font-size:1.02rem; border-bottom:2px solid var(--gold); padding-bottom:6px; margin-bottom:12px; break-after:avoid; page-break-after:avoid; }
+  .report-ind{ padding:4px 0 10px; margin-bottom:8px; }
+  .report-ind-title{ font-weight:600; background:#F4EEDF; border-left:3px solid var(--gold); padding:8px 12px; border-radius:3px; margin-bottom:8px; break-after:avoid; page-break-after:avoid; }
+  .report-ind-score{ margin:0 0 8px; }
+  .report-entry{ margin:0 0 18px; }
+  .report-figure{ break-inside:avoid; page-break-inside:avoid; }
+  .report-img-wrap{ text-align:center; padding:6px 0 8px; }
+  .report-img{ display:inline-block; max-width:64%; max-height:88mm; width:auto; height:auto; border-radius:3px; border:1px solid var(--line); }
+  .report-date{ background:#F4EEDF; padding:5px 12px; font-size:.82rem; color:var(--gold); font-weight:700; border-radius:3px; break-after:avoid; page-break-after:avoid; }
+  .report-ind-note{ font-size:.92rem; color:var(--ink); white-space:pre-wrap; padding:6px 12px 0; }
+  .report-ind-note em{ color:var(--ink-soft); }
   .report-print-header{ display:none; }
+  @page{ size:A4; margin:12mm 12mm 14mm; }
   @media print{
-    .report-print-header{ display:block; text-align:center; margin-bottom:20px; }
-    .report-crit-block{ break-inside:avoid; }
-    .report-ind{ break-inside:avoid; }
-    .report-entry{ break-inside:avoid; }
+    html, body{ min-height:0 !important; height:auto !important; }
+    body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #app{ max-width:none; padding:0; }
+    .topbar{ background:#F4EEDF; border-bottom:2px solid var(--maroon); padding:10px 12px; }
+    .report-print-header{ display:block; text-align:center; margin:8px 0 6px; }
+    .app-footer{ display:none !important; } /* a footer line alone must never spill onto an extra page */
+    .report-img{ max-height:88mm; }
   }
 </style>
 
@@ -1744,19 +1754,23 @@ function reportIndicatorHtml(ind){
   var calcHtml = ind.calc ? calcTableHtml(ind) : '';
   var entries = (ind.entries || []).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
   var entriesHtml = entries.length ? entries.map(function(e){
-    var img = e.imageData
-      ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
-      : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
-    return '<div class="report-entry">'+img+
-      '<div class="report-ind-body">'+
-        '<div style="font-size:.78rem;color:var(--gold);font-weight:600;margin-bottom:3px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
-        '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
-      '</div>'+
-    '</div>';
-  }).join('') : (ind.calc ? '' : '<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>');
+    var note = '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>';
+    var date = '<div class="report-date">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>';
+    if(e.imageData){
+      /* photo + date are kept together; the note may flow onto the next page if it is very long */
+      return '<div class="report-entry">'+
+        '<div class="report-figure">'+
+          '<div class="report-img-wrap"><img class="report-img" src="'+e.imageData+'" alt="சான்று படம்"></div>'+
+          date+
+        '</div>'+
+        note+
+      '</div>';
+    }
+    return '<div class="report-entry"><div class="report-figure">'+date+'</div>'+note+'</div>';
+  }).join('') : (ind.calc ? '' : '<p class="hint" style="padding:0 12px">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>');
   return '<div class="report-ind">'+
     '<div class="report-ind-title">'+escapeHtml(ind.title)+'</div>'+
-    (ind.calc ? '' : '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>')+
+    (ind.calc ? '' : '<div class="report-ind-score"><span class="badge small">'+escapeHtml(scoreTxt)+'</span></div>')+
     calcHtml+
     entriesHtml+
   '</div>';
@@ -1772,8 +1786,8 @@ function reportDeptHtml(deptId){
       c.indicators.map(reportIndicatorHtml).join('')+
     '</div>';
   }).join('');
-  return '<section style="margin-bottom:34px">'+
-    '<h2 style="color:var(--maroon-deep)">'+escapeHtml(dept.name)+'</h2>'+
+  return '<section style="margin-bottom:20px">'+
+    '<h2 class="report-dept-title">'+escapeHtml(dept.name)+'</h2>'+
     body+
   '</section>';
 }
@@ -1785,8 +1799,8 @@ function reportSingleCritHtml(deptId, critId){
   var idx = -1, c = null;
   for(var i=0;i<dData.criteria.length;i++){ if(dData.criteria[i].id===critId){ idx=i; c=dData.criteria[i]; break; } }
   if(!c) return '<p>இந்த நியதி காணப்படவில்லை (நீக்கப்பட்டிருக்கலாம்).</p>';
-  return '<section style="margin-bottom:34px">'+
-    '<h2 style="color:var(--maroon-deep)">'+escapeHtml(dept.name)+'</h2>'+
+  return '<section style="margin-bottom:20px">'+
+    '<h2 class="report-dept-title">'+escapeHtml(dept.name)+'</h2>'+
     '<div class="report-crit-block">'+
       '<div class="report-crit-title">நியதி '+(idx+1)+' — '+escapeHtml(c.title)+'</div>'+
       c.indicators.map(reportIndicatorHtml).join('')+
