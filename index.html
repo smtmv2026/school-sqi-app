@@ -1067,6 +1067,7 @@ function enterSchoolAsSuperAdmin(schoolId){
   state.role = 'admin';
   subscribeSchoolMeta(function(){ renderApp(); });
   state.view = 'admin';
+  state.showWelcomeGate = true;
   renderApp();
 }
 
