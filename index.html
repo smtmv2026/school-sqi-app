@@ -226,17 +226,21 @@
   .report-ind-note{ font-size:.88rem; color:var(--ink-soft); white-space:pre-wrap; }
   .report-print-header{ display:none; }
 
-  /* Each evidence entry (photo + date + note) stays together on one page,
-     even though the indicator around it may span a page break. */
-  .report-entry{ page-break-inside:avoid; margin:10px 0; text-align:left; }
+  /* Only the photo (plus its date line right under it) is kept from ever
+     being split across a page — that's the part that looks bad if broken.
+     A long note is allowed to flow onto the next page on its own, instead
+     of the whole entry being shoved down and leaving a blank gap at the
+     bottom of the page above it. */
+  .report-entry{ margin:10px 0; text-align:left; }
   .report-entry:last-child{ margin-bottom:0; }
-  .report-img, .report-img-empty{ display:block; width:500px; max-width:100%; height:350px; margin:0 0 12px; border-radius:5px; border:1px solid var(--line); }
+  .report-entry-media{ page-break-inside:avoid; }
+  .report-img, .report-img-empty{ display:block; width:620px; max-width:100%; height:350px; margin:0 0 12px; border-radius:5px; border:1px solid var(--line); }
   .report-img{ object-fit:cover; }
   .report-img-empty{ display:flex; align-items:center; justify-content:center; background:#F2ECDD; color:var(--ink-soft); font-size:.85rem; text-align:center; padding:6px; }
   @media print{
     @page{ size:A4; margin:0.6in 0.6in 0.6in 0.75in; }
     .report-print-header{ display:block; text-align:center; margin-bottom:20px; }
-    .report-entry{ break-inside:avoid; }
+    .report-entry-media{ break-inside:avoid; }
   }
 </style>
 
@@ -2149,9 +2153,11 @@ function reportEntryHtml(e){
     ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
     : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
   return '<div class="report-entry">'+
-    img+
-    '<div class="report-ind-body" style="margin-top:10px">'+
-      '<div style="font-size:.8rem;color:var(--gold);font-weight:600;margin-bottom:4px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
+    '<div class="report-entry-media">'+
+      img+
+      '<div style="font-size:.8rem;color:var(--gold);font-weight:600;margin-top:10px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
+    '</div>'+
+    '<div class="report-ind-body" style="margin-top:4px">'+
       '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
     '</div>'+
   '</div>';
