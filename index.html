@@ -234,7 +234,9 @@
   .report-entry{ margin:10px 0; text-align:left; }
   .report-entry:last-child{ margin-bottom:0; }
   .report-entry-media{ page-break-inside:avoid; }
-  .report-img, .report-img-empty{ display:block; width:620px; max-width:100%; height:350px; margin:0 auto 12px; border-radius:5px; border:1px solid var(--line); }
+  /* border-style:ridge (not box-shadow) so the embossed frame always shows
+     up in print/PDF output, even when "background graphics" is off. */
+  .report-img, .report-img-empty{ display:block; width:620px; max-width:100%; height:350px; margin:0 auto 12px; border-radius:4px; border:4px ridge var(--gold-light); }
   .report-img{ object-fit:cover; }
   .report-img-empty{ display:flex; align-items:center; justify-content:center; background:#F2ECDD; color:var(--ink-soft); font-size:.85rem; text-align:center; padding:6px; }
   @media print{
