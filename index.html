@@ -212,45 +212,24 @@
   .pill{ display:inline-block; padding:2px 9px; border-radius:12px; font-size:.72rem; background:var(--gold-light); color:var(--maroon-deep); font-weight:600; }
   .center-wrap .login-card input{ margin-bottom:2px; }
 
-  /* ---- evidence / criteria report: exact A4 sheets ----
-     The report is laid out into fixed A4 "sheets" by JavaScript
-     (paginateReport). Each photo is shrunk just enough to fit the space
-     left on a sheet, and any space left over is used to enlarge the
-     photos on that sheet — so there are no blank pages and no large
-     empty gaps. Printing then simply prints one sheet per A4 page. */
-  #reportSheets{ overflow-x:auto; padding:6px 0 20px; }
-  .sheet{ width:210mm; height:296mm; box-sizing:border-box; padding:11mm 12mm; margin:0 auto 18px; background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.25); overflow:hidden; }
-  .sheet-body{ height:100%; overflow:hidden; }
-  .sheet-flow{ display:block; }
-  .rb{ padding-bottom:9px; }
-  .rb-school{ display:flex; align-items:center; gap:12px; background:#F4EEDF; border-bottom:2px solid var(--maroon); padding:9px 12px; margin-bottom:12px; }
-  .rb-school .t1{ font-family:'Noto Serif Tamil',serif; font-weight:700; color:var(--maroon-deep); font-size:1.05rem; }
-  .rb-school .t2{ font-size:.8rem; color:var(--ink-soft); }
-  .report-dept-title{ font-family:'Noto Serif Tamil',serif; color:var(--maroon-deep); font-size:1.25rem; margin:4px 0 0; }
-  .report-crit-title{ font-family:'Noto Serif Tamil',serif; font-weight:700; color:var(--maroon-deep); font-size:1rem; border-bottom:2px solid var(--gold); padding-bottom:5px; }
-  .report-ind-title{ font-weight:600; background:#F4EEDF; border-left:3px solid var(--gold); padding:7px 12px; border-radius:3px; font-size:.95rem; }
-  .report-ind-score{ margin-top:6px; }
-  .rb-cont{ font-size:.78rem; color:var(--ink-soft); border-bottom:1px dashed var(--line); padding-bottom:4px; margin-bottom:8px; }
-  /* every evidence photo uses the same fixed 500 x 350 frame; the whole photo is
-     shown (never cropped) and centred inside the frame */
-  .rb-imgbox{ width:500px; height:350px; margin:0 auto 6px; background:#F2ECDD; border:1px solid var(--line); border-radius:3px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
-  .rb-img{ display:block; width:100%; height:100%; object-fit:contain; }
-  .report-date{ background:#F4EEDF; padding:4px 12px; font-size:.82rem; color:var(--gold); font-weight:700; border-radius:3px; }
-  .report-ind-note{ font-size:.9rem; color:var(--ink); white-space:pre-wrap; padding:4px 12px 0; }
-  .report-ind-note em{ color:var(--ink-soft); }
-  .sheet .calc-table-wrap{ overflow:visible; }
-  .sheet .calc-input{ border:none; background:transparent; width:44px; }
-  @page{ size:A4; margin:0; }
+  /* ---- evidence / criteria report (printable) ---- */
+  .report-crit-block{ margin-bottom:26px; page-break-inside:avoid; }
+  .report-crit-title{ font-family:'Noto Serif Tamil',serif; font-weight:700; color:var(--maroon-deep); font-size:1.05rem; border-bottom:2px solid var(--gold); padding-bottom:6px; margin-bottom:12px; }
+  .report-ind{ display:flex; flex-direction:column; align-items:stretch; gap:8px; border-top:1px dashed var(--line); padding:14px 0; page-break-inside:avoid; margin-bottom:6px; }
+  .report-ind:first-child{ border-top:none; }
+  .report-entry{ display:flex; gap:14px; align-items:flex-start; padding:8px 0 8px 10px; border-left:2px solid var(--gold-light); page-break-inside:avoid; }
+  .report-img, .report-img-empty{ width:150px; height:110px; flex:0 0 auto; border-radius:5px; border:1px solid var(--line); }
+  .report-img{ object-fit:cover; }
+  .report-img-empty{ display:flex; align-items:center; justify-content:center; background:#F2ECDD; color:var(--ink-soft); font-size:.75rem; text-align:center; padding:6px; }
+  .report-ind-body{ flex:1; min-width:0; }
+  .report-ind-title{ font-weight:600; margin-bottom:4px; }
+  .report-ind-note{ font-size:.88rem; color:var(--ink-soft); white-space:pre-wrap; }
+  .report-print-header{ display:none; }
   @media print{
-    html, body{ min-height:0 !important; height:auto !important; background:#fff !important; }
-    body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    #app{ max-width:none; }
-    #app:not(.report-mode){ padding:12mm; }         /* other printouts keep a normal margin */
-    #app.report-mode{ padding:0; margin:0; }
-    #app.report-mode > *:not(#reportSheets){ display:none !important; }
-    #reportSheets{ padding:0; overflow:visible; }
-    .sheet{ margin:0; box-shadow:none; break-after:page; page-break-after:always; }
-    .sheet:last-child{ break-after:auto; page-break-after:auto; }
+    .report-print-header{ display:block; text-align:center; margin-bottom:20px; }
+    .report-crit-block{ break-inside:avoid; }
+    .report-ind{ break-inside:avoid; }
+    .report-entry{ break-inside:avoid; }
   }
 </style>
 
@@ -265,9 +244,9 @@
 var REAL_SEED = {
   d1: [
     ['கலைத்திட்ட நோக்கத்தை அண்மித்தல் (ஆரம்பக் கல்வி)', [
-      'முதன்மைநிலை 1க்குரிய தேர்ச்சிகள் 48 உம் அடைந்த மாணவர் %',
-      'முதன்மைநிலை 2க்குரிய தேர்ச்சிகள் 50 உம் அடைந்த மாணவர் %',
-      'முதன்மைநிலை 3க்குரிய தேர்ச்சிகள் 52 உம் அடைந்த மாணவர் %'
+      'முதன்மைநிலை 1க்குரிய தேர்ச்சிகள் 40 உம் அடைந்த மாணவர் %',
+      'முதன்மைநிலை 2க்குரிய தேர்ச்சிகள் 52 உம் அடைந்த மாணவர் %',
+      'முதன்மைநிலை 3க்குரிய தேர்ச்சிகள் 55 உம் அடைந்த மாணவர் %'
     ]],
     ['தேசிய மட்டத்திலான பரீட்சைகளில் உயர் பெறுபேறுகளைப் பெற்றுக்கொள்ளல்', [
       'தரம் 5 புலமைப்பரிசில் பரீட்சையில் 70 புள்ளிக்கு மேல் பெற்றோர் %',
@@ -802,26 +781,8 @@ function migrateIndicator(ind){
   }
   delete ind.imageData; delete ind.imageName; delete ind.note;
 }
-/* முதன்மைநிலைத் தேர்ச்சிகளின் எண்ணிக்கை திருத்தம் (40/52/55 → 48/50/52).
-   ஏற்கெனவே Firestore இல் சேமிக்கப்பட்ட பாடசாலைகளின் சுட்டித் தலைப்புகளையும்
-   புள்ளிகள், சான்றுகள் இழக்காமல் புதுப்பிக்கிறது. */
-var DEPT1_TITLE_RENAMES = {
-  'முதன்மைநிலை 1க்குரிய தேர்ச்சிகள் 40 உம் அடைந்த மாணவர் %': 'முதன்மைநிலை 1க்குரிய தேர்ச்சிகள் 48 உம் அடைந்த மாணவர் %',
-  'முதன்மைநிலை 2க்குரிய தேர்ச்சிகள் 52 உம் அடைந்த மாணவர் %': 'முதன்மைநிலை 2க்குரிய தேர்ச்சிகள் 50 உம் அடைந்த மாணவர் %',
-  'முதன்மைநிலை 3க்குரிய தேர்ச்சிகள் 55 உம் அடைந்த மாணவர் %': 'முதன்மைநிலை 3க்குரிய தேர்ச்சிகள் 52 உம் அடைந்த மாணவர் %'
-};
-function renameDept1PrimaryIndicators(dData){
-  var changed = false;
-  dData.criteria.forEach(function(c){
-    c.indicators.forEach(function(ind){
-      if(DEPT1_TITLE_RENAMES[ind.title]){ ind.title = DEPT1_TITLE_RENAMES[ind.title]; changed = true; }
-    });
-  });
-  return changed;
-}
 function migrateDeptData(dData, deptId){
   if(!dData || !dData.criteria) return dData;
-  if(deptId==='d1') renameDept1PrimaryIndicators(dData);
   dData.criteria.forEach(function(c){ c.indicators.forEach(migrateIndicator); });
   if(deptId==='d1') attachDept1Calc(dData);
   return dData;
@@ -960,10 +921,7 @@ function subscribeDept(deptId, onChange){
     delete state.deptErrors[deptId];
     if(snap.metadata.hasPendingWrites) return; // our own optimistic write echoing back
     if(snap.exists){
-      var raw = snap.data();
-      var needsRename = (deptId==='d1') && JSON.stringify(raw).indexOf('தேர்ச்சிகள் 40 உம்')!==-1;
-      state.deptData[deptId] = migrateDeptData(raw, deptId);
-      if(needsRename) deptsColRef().doc(deptId).set(state.deptData[deptId]).catch(function(){});
+      state.deptData[deptId] = migrateDeptData(snap.data(), deptId);
     } else {
       state.deptData[deptId] = buildEmptyDeptData(deptId);
       deptsColRef().doc(deptId).set(state.deptData[deptId]).catch(function(){});
@@ -1188,7 +1146,6 @@ function migrateOldDataIntoNewSchool(){
 
 function renderApp(){
   var app = document.getElementById('app');
-  app.classList.remove('report-mode');
   if(CONFIG_IS_PLACEHOLDER){ renderSetupNeeded(app); return; }
   if(state.view==='boot'){ renderBoot(app); return; }
   if(state.view==='login'){ renderLogin(app); return; }
@@ -1761,118 +1718,59 @@ function renderAdminOverview(app){
 
 /* ---- school setup / user management ---- */
 
-/* ---- evidence report: build blocks, then lay them out on exact A4 sheets ---- */
-
-var reportToken = 0;
-
-function rbEl(html, kind, ctx){
-  var wrap = document.createElement('div');
-  wrap.innerHTML = html;
-  var el = wrap.firstChild;
-  el._kind = kind;
-  return {el:el, kind:kind, ctx:ctx||null};
+function reportIndicatorHtml(ind){
+  var scoreTxt = (ind.score && ind.score>0) ? SCORE_LABELS[ind.score] : 'மதிப்பிடப்படவில்லை';
+  var calcHtml = ind.calc ? calcTableHtml(ind) : '';
+  var entries = (ind.entries || []).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+  var entriesHtml = entries.length ? entries.map(function(e){
+    var img = e.imageData
+      ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
+      : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
+    return '<div class="report-entry">'+img+
+      '<div class="report-ind-body">'+
+        '<div style="font-size:.78rem;color:var(--gold);font-weight:600;margin-bottom:3px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
+        '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join('') : (ind.calc ? '' : '<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>');
+  return '<div class="report-ind">'+
+    '<div class="report-ind-title">'+escapeHtml(ind.title)+'</div>'+
+    (ind.calc ? '' : '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>')+
+    calcHtml+
+    entriesHtml+
+  '</div>';
 }
 
-function loadImg(src){
-  return new Promise(function(resolve){
-    var img = new Image();
-    img.onload = function(){ resolve(img); };
-    img.onerror = function(){ resolve(null); };
-    img.src = src;
-  });
+function reportDeptHtml(deptId){
+  var dept = deptById(deptId);
+  var dData = state.deptData[deptId];
+  if(!dData) return '';
+  var body = dData.criteria.map(function(c, i){
+    return '<div class="report-crit-block">'+
+      '<div class="report-crit-title">நியதி '+(i+1)+' — '+escapeHtml(c.title)+'</div>'+
+      c.indicators.map(reportIndicatorHtml).join('')+
+    '</div>';
+  }).join('');
+  return '<section style="margin-bottom:34px">'+
+    '<h2 style="color:var(--maroon-deep)">'+escapeHtml(dept.name)+'</h2>'+
+    body+
+  '</section>';
 }
 
-function buildReportBlocks(scope){
-  var blocks = [];
-  var today = new Date().toLocaleDateString('ta-LK');
-  var school = state.school || {};
-  var subtitle = 'நியதி/சுட்டி வாரியான சான்று அறிக்கை';
-  if(scope.type==='dept') subtitle = 'முழுமையான சான்று அறிக்கை';
-  if(scope.type==='crit') subtitle = 'ஒரு நியதிக்கான சான்று அறிக்கை';
-  blocks.push(rbEl('<div class="rb rb-school">'+brandMarkHtml(40)+
-    '<div><div class="t1">'+escapeHtml(school.name||'')+'</div>'+
-    '<div class="t2">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீடு'+(school.year?' · '+escapeHtml(school.year):'')+' · '+escapeHtml(subtitle)+' · '+escapeHtml(today)+'</div></div></div>', 'text'));
-
-  var deptIds = (scope.type==='all') ? DEPARTMENTS.map(function(d){ return d.id; }) : [scope.deptId];
-  deptIds.forEach(function(deptId){
-    var dData = state.deptData[deptId];
-    if(!dData) return;
-    blocks.push(rbEl('<div class="rb"><h2 class="report-dept-title">'+escapeHtml(deptById(deptId).name)+'</h2></div>', 'head'));
-    dData.criteria.forEach(function(c, ci){
-      if(scope.type==='crit' && c.id!==scope.critId) return;
-      blocks.push(rbEl('<div class="rb"><div class="report-crit-title">நியதி '+(ci+1)+' — '+escapeHtml(c.title)+'</div></div>', 'head'));
-      c.indicators.forEach(function(ind){
-        var scoreTxt = (ind.score && ind.score>0) ? SCORE_LABELS[ind.score] : 'மதிப்பிடப்படவில்லை';
-        blocks.push(rbEl('<div class="rb"><div class="report-ind-title">'+escapeHtml(ind.title)+
-          (ind.calc ? '' : '<div class="report-ind-score"><span class="badge small">'+escapeHtml(scoreTxt)+'</span></div>')+
-          '</div></div>', 'head'));
-        if(ind.calc) blocks.push(rbEl('<div class="rb">'+calcTableHtml(ind)+'</div>', 'text', ind.title));
-        var entries = (ind.entries||[]).slice().sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
-        if(!entries.length && !ind.calc){
-          blocks.push(rbEl('<div class="rb"><p class="hint" style="margin:0;padding:0 12px">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p></div>', 'text', ind.title));
-        }
-        entries.forEach(function(e){
-          var date = '<div class="report-date">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>';
-          var note = '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>';
-          if(e.imageData){
-            blocks.push(rbEl('<div class="rb"><div class="rb-imgbox"><img class="rb-img" src="'+e.imageData+'" alt="சான்று படம்"></div>'+date+note+'</div>', 'photo', ind.title));
-          } else {
-            blocks.push(rbEl('<div class="rb">'+date+note+'</div>', 'text', ind.title));
-          }
-        });
-      });
-    });
-  });
-  return blocks;
-}
-
-function paginateReport(container, blocks, token){
-  /* Photos have a fixed 500 x 350 size, so a block either fits in the space
-     left on a sheet or moves (with its titles) to the next sheet. Sheets are
-     only created when something is placed on them, so there is never a
-     blank page. */
-  var imgs = [];
-  blocks.forEach(function(b){ b.el.querySelectorAll('img').forEach(function(im){ imgs.push(im); }); });
-  return Promise.all(imgs.map(function(im){
-    return im.complete ? null : new Promise(function(r){ im.onload = im.onerror = r; });
-  })).then(function(){
-    return (document.fonts && document.fonts.ready) ? document.fonts.ready : null;
-  }).then(function(){
-    if(token!==reportToken) return;
-    container.innerHTML = '';
-    var pages = [];
-    function newPage(){
-      var sh = document.createElement('div'); sh.className='sheet';
-      var body = document.createElement('div'); body.className='sheet-body';
-      var flow = document.createElement('div'); flow.className='sheet-flow';
-      body.appendChild(flow); sh.appendChild(body); container.appendChild(sh);
-      var p = {sheet:sh, body:body, flow:flow};
-      pages.push(p); return p;
-    }
-    function overflows(p){ return p.flow.offsetHeight > p.body.clientHeight; }
-
-    var page = newPage();
-    blocks.forEach(function(b){
-      page.flow.appendChild(b.el);
-      if(!overflows(page)) return;
-      page.flow.removeChild(b.el);
-      var carry = [];
-      while(page.flow.lastChild && page.flow.lastChild._kind==='head'){
-        carry.unshift(page.flow.lastChild);
-        page.flow.removeChild(page.flow.lastChild);
-      }
-      if(page.flow.childNodes.length) page = newPage();
-      if(!carry.length && b.ctx && b.kind!=='head'){
-        var cont = document.createElement('div');
-        cont.className = 'rb-cont';
-        cont.textContent = 'தொடர்ச்சி — ' + b.ctx;
-        page.flow.appendChild(cont);
-      }
-      carry.forEach(function(c){ page.flow.appendChild(c); });
-      page.flow.appendChild(b.el);
-    });
-    pages.forEach(function(p){ if(!p.flow.childNodes.length) p.sheet.parentNode.removeChild(p.sheet); });
-  });
+function reportSingleCritHtml(deptId, critId){
+  var dept = deptById(deptId);
+  var dData = state.deptData[deptId];
+  if(!dData) return '';
+  var idx = -1, c = null;
+  for(var i=0;i<dData.criteria.length;i++){ if(dData.criteria[i].id===critId){ idx=i; c=dData.criteria[i]; break; } }
+  if(!c) return '<p>இந்த நியதி காணப்படவில்லை (நீக்கப்பட்டிருக்கலாம்).</p>';
+  return '<section style="margin-bottom:34px">'+
+    '<h2 style="color:var(--maroon-deep)">'+escapeHtml(dept.name)+'</h2>'+
+    '<div class="report-crit-block">'+
+      '<div class="report-crit-title">நியதி '+(idx+1)+' — '+escapeHtml(c.title)+'</div>'+
+      c.indicators.map(reportIndicatorHtml).join('')+
+    '</div>'+
+  '</section>';
 }
 
 function renderEvidenceReport(app, scope){
@@ -1884,30 +1782,33 @@ function renderEvidenceReport(app, scope){
     app.innerHTML = topbarHtml('') + '<div class="center-wrap"><p style="color:var(--ink-soft)">தரவு ஏற்றப்படுகிறது…</p></div>';
     return;
   }
+  var todayStr = new Date().toLocaleDateString('ta-LK');
+  var subtitle = 'நியதி/சுட்டி வாரியான சான்று அறிக்கை';
+  if(scope.type==='dept') subtitle = deptById(scope.deptId).name + ' — முழுமையான சான்று அறிக்கை';
+  if(scope.type==='crit') subtitle = deptById(scope.deptId).name + ' — ஒரு நியதிக்கான சான்று அறிக்கை';
 
-  app.classList.add('report-mode');
+  var bodyHtml;
+  if(scope.type==='crit') bodyHtml = reportSingleCritHtml(scope.deptId, scope.critId);
+  else bodyHtml = deptIds.map(reportDeptHtml).join('');
+
   app.innerHTML =
     topbarHtml(
-      '<button class="btn-outline no-print" id="btnPrintReport" disabled>PDF ஆக பதிவிறக்கு (Print → Save as PDF)</button> '+
+      '<button class="btn-outline no-print" id="btnPrintReport">PDF ஆக பதிவிறக்கு (Print → Save as PDF)</button> '+
       '<button class="btn-ghost no-print" id="btnBackReport">← திரும்பு</button>'
     ) +
-    '<div class="setup-notice no-print">கீழே தெரிவது அச்சிடப்படும் A4 பக்கங்களின் சரியான தோற்றமாகும். PDF ஆகச் சேமிக்க மேலே உள்ள பொத்தானை அழுத்தி, Print சாளரத்தில் "Destination" இல் <strong>Save as PDF</strong>, "Paper size" இல் <strong>A4</strong>, "Margins" இல் <strong>None</strong> அல்லது <strong>Default</strong>, "Scale" இல் <strong>100</strong> எனத் தெரிவு செய்து, <strong>Background graphics</strong> ஐ இயக்கி Save செய்யவும்.</div>'+
-    '<div id="reportSheets"><p style="color:var(--ink-soft);text-align:center">A4 பக்கங்கள் ஒழுங்குபடுத்தப்படுகின்றன…</p></div>';
+    '<div class="report-print-header">'+
+      '<div style="color:var(--ink-soft);font-size:.85rem">'+escapeHtml(subtitle)+' · '+escapeHtml(todayStr)+'</div>'+
+    '</div>'+
+    '<div class="setup-notice no-print">இந்தப் பக்கத்தை PDF கோப்பாகச் சேமிக்க, மேலே உள்ள பொத்தானை அழுத்தி, திறக்கும் Print சாளரத்தில் "Destination" இல் <strong>Save as PDF</strong> ஐத் தேர்ந்தெடுத்து Save செய்யவும்.</div>'+
+    '<div id="reportBody">'+bodyHtml+'</div>'+
+    '<footer class="app-footer">பாடசாலைக் கல்விப் பண்புத்தர மதிப்பீட்டு சான்று அறிக்கை.</footer>';
 
+  document.getElementById('btnPrintReport').onclick=function(){ window.print(); };
   document.getElementById('btnBackReport').onclick=function(){
-    reportToken++;
     if(scope.type==='all'){ state.view='admin'; }
     else { state.currentDept = scope.deptId; state.view='adminDept'; }
     renderApp();
   };
-
-  var token = ++reportToken;
-  var blocks = buildReportBlocks(scope);
-  paginateReport(document.getElementById('reportSheets'), blocks, token).then(function(){
-    if(token!==reportToken) return;
-    var pb = document.getElementById('btnPrintReport');
-    if(pb){ pb.disabled=false; pb.onclick=function(){ window.print(); }; }
-  });
 }
 
 function fileToLogoDataUrl(file, maxDim){
@@ -1968,9 +1869,40 @@ function renderSchoolSetup(app){
     '<div class="error-msg" id="setupErr"></div>'+
     '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பங்கு</th><th></th></tr></thead>'+
     '<tbody id="usersTbody"><tr><td colspan="3" style="color:var(--ink-soft)">ஏற்றப்படுகிறது…</td></tr></tbody></table>'+
+    '<div class="criterion" style="margin-top:24px">'+
+      '<div class="criterion-head"><span class="crit-num">மீட்பு கருவி</span></div>'+
+      '<p class="hint" style="margin:0 0 10px">பள்ளிகள் பிரிக்கப்படுவதற்கு முன் ஒரு துறையில் பதிவு செய்யப்பட்ட தகவல் இந்தப் பள்ளியில் தற்போது தெரியவில்லை எனில், அந்தத் துறையைத் தெரிவு செய்து கீழுள்ள பொத்தானை அழுத்தவும் — பழைய இடத்தில் இன்னும் இருக்கும் அந்தத் துறையின் தரவை இந்தப் பள்ளிக்குள் மீண்டும் கொண்டு வரும். <strong>இது இந்தத் துறையில் இப்போது இந்தப் பள்ளியில் உள்ளதை நீக்கி, பழைய தரவால் மாற்றும்</strong> — எனவே தேவையான துறைக்கு மட்டும் பயன்படுத்தவும்.</p>'+
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'+
+        '<div class="field" style="min-width:260px"><label>துறை</label><select id="recoverDept" class="role-select">'+
+          DEPARTMENTS.map(function(d){ return '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>'; }).join('')+
+        '</select></div>'+
+        '<button type="button" class="btn-outline" id="btnRecoverDept">இந்தத் துறையின் பழைய தரவைக் கொண்டுவா</button>'+
+      '</div>'+
+      '<div class="error-msg" id="recoverMsg"></div>'+
+    '</div>'+
     '<footer class="app-footer">புதிதாக உருவாக்கிய மின்னஞ்சல் மற்றும் தற்காலிகக் கடவுச்சொல்லை அந்தந்தத் துறைப் பொறுப்பாளரிடம் நேரடியாக வழங்கவும்.</footer>';
 
   document.getElementById('btnBackAdmin').onclick=function(){ state.view='admin'; renderApp(); };
+
+  document.getElementById('btnRecoverDept').onclick=function(){
+    var deptId = document.getElementById('recoverDept').value;
+    var dept = deptById(deptId);
+    var msgEl = document.getElementById('recoverMsg');
+    msgEl.textContent='';
+    if(!confirm('"'+dept.name+'" துறையில் இந்தப் பள்ளியில் தற்போது உள்ள தரவு நீக்கப்பட்டு, பழைய இடத்தில் இருக்கும் தரவால் மாற்றப்படும். தொடரவா?')) return;
+    db.collection('departments').doc(deptId).get().then(function(doc){
+      if(!doc.exists) throw new Error('இந்தத் துறைக்கான பழைய தரவு எதுவும் கிடைக்கவில்லை.');
+      return deptsColRef().doc(deptId).set(doc.data());
+    }).then(function(){
+      unsubscribeDept(deptId);
+      delete state.deptData[deptId];
+      msgEl.style.color='var(--sage)';
+      msgEl.textContent='"'+dept.name+'" துறையின் பழைய தரவு கொண்டு வரப்பட்டது ✓';
+    }).catch(function(err){
+      msgEl.style.color='';
+      msgEl.textContent = err.message;
+    });
+  };
 
   function saveSchoolMeta(){
     schoolDocRef().set(school, {merge:true}).then(function(){
