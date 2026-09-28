@@ -2136,12 +2136,14 @@ function reportEntryBlockHtml(item){
   var img = e.imageData
     ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
     : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
-  /* Heading (indicator text) above the photo, date + user's note below it —
-     matching the sample report layout. */
+  /* Heading (indicator text only) above the photo, date + user's note below
+     it — matching the sample report layout. The criterion's own title is
+     not repeated here: it's often a long sentence shared by several
+     indicators, so printing it above every single photo (sometimes many
+     per indicator) was just repetitive clutter. */
   return '<div class="report-entry">'+
     '<div class="report-ind-header">'+
       '<div class="report-ind-title">'+escapeHtml(item.indTitle)+'</div>'+
-      '<div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:8px">'+escapeHtml(item.critTitle)+'</div>'+
     '</div>'+
     img+
     '<div class="report-ind-body" style="margin-top:10px">'+
