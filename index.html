@@ -1329,8 +1329,6 @@ function renderSuperAdmin(app){
     return;
   }
 
-  var showMigrate = state.schools.length===0;
-
   app.innerHTML =
     '<div class="topbar"><div class="brand"><div><div class="brand-title">Superadmin — பள்ளிகள் மேலாண்மை</div>'+
     '<div class="brand-sub">'+escapeHtml(state.user?state.user.email:'')+'</div></div></div>'+
@@ -1342,15 +1340,14 @@ function renderSuperAdmin(app){
       '<button class="btn-primary" id="btnCreateSchool">+ புதிய பள்ளியை உருவாக்கு</button>'+
     '</div>'+
     '<div class="error-msg" id="saErr"></div>'+
-    (showMigrate ?
-      '<div class="setup-notice">இதுவரை எந்தப் பள்ளியும் இங்கு பதிவு செய்யப்படவில்லை. இந்தச் செயலி முன்பு ஒரு பள்ளிக்காக மட்டும் பயன்பட்டிருந்தால், அதன் ஏற்கெனவே உள்ள தரவை (துறைகள், பயனர்கள், கற்றல் கற்பித்தல் மேற்பார்வைப் பதிவுகள்) இழக்காமல் முதல் பள்ளியாக இங்கு கொண்டு வர கீழுள்ள பொத்தானை அழுத்தவும். இது பழைய தரவை நீக்காது — புதிதாக நகலெடுக்கும்.</div>'+
-      '<p><button type="button" class="btn-outline" id="btnMigrate">முன்பிருந்த தரவை முதல் பள்ளியாகக் கொண்டுவா</button></p>'
-      : '')+
+    '<div class="setup-notice">இந்தச் செயலி முன்பு St. Mary\'s Tamil Maha Vidyalaya ஒரு பள்ளிக்காக மட்டும் பயன்பட்டிருந்தது. அதன் ஏற்கெனவே உள்ள தரவை (துறைகள், பயனர்கள், கற்றல் கற்பித்தல் மேற்பார்வைப் பதிவுகள்) இழக்காமல் ஒரு தனிப் பள்ளியாக இங்கு கொண்டு வர கீழுள்ள பொத்தானை அழுத்தவும் — <strong>ஒரே ஒரு தடவை மட்டும்</strong> அழுத்தவும் (இது பழைய தரவை நீக்காது, ஒவ்வொரு முறையும் புதிதாக நகலெடுக்கும்).</div>'+
+    '<p><button type="button" class="btn-outline" id="btnMigrate">St. Mary\'s இன் முன்பிருந்த தரவைக் கொண்டுவா</button></p>'+
     '<table class="setup-table"><thead><tr><th>பள்ளி</th><th>ஆண்டு</th><th></th></tr></thead>'+
     '<tbody id="schoolsTbody">'+
       (state.schools.length ? state.schools.map(function(s){
         return '<tr><td>'+escapeHtml(s.name||'(பெயரிடப்படாதது)')+'</td><td>'+escapeHtml(s.year||'—')+'</td>'+
-          '<td><button class="btn-tiny" data-open="'+s.id+'">திற →</button></td></tr>';
+          '<td style="white-space:nowrap"><button class="btn-tiny" data-open="'+s.id+'">திற →</button> '+
+          '<button class="btn-tiny" data-del="'+s.id+'" data-name="'+escapeHtml(s.name||'')+'">நீக்கு</button></td></tr>';
       }).join('') : '<tr><td colspan="3" style="color:var(--ink-soft)">இதுவரை பள்ளிகள் எதுவும் இல்லை.</td></tr>')+
     '</tbody></table>';
 
@@ -1388,6 +1385,14 @@ function renderSuperAdmin(app){
   }
   app.querySelectorAll('[data-open]').forEach(function(btn){
     btn.onclick=function(){ enterSchoolAsSuperAdmin(btn.getAttribute('data-open')); };
+  });
+  app.querySelectorAll('[data-del]').forEach(function(btn){
+    btn.onclick=function(){
+      var id = btn.getAttribute('data-del');
+      var name = btn.getAttribute('data-name') || id;
+      if(!confirm('"'+name+'" எனும் பள்ளியை நீக்கவா? (இதன் துறைத் தரவு, பயனர்கள் தானாக நீக்கப்படாமல் இருக்கலாம் — பிரதானமாக இந்தப் பள்ளியை பட்டியலிலிருந்து மறைக்கும்.)')) return;
+      db.collection('schools').doc(id).delete().catch(function(err){ alert('நீக்க முடியவில்லை: '+err.message); });
+    };
   });
 }
 
