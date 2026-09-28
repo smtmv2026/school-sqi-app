@@ -2136,11 +2136,15 @@ function reportEntryBlockHtml(item){
   var img = e.imageData
     ? '<img class="report-img" src="'+e.imageData+'" alt="சான்று படம்">'
     : '<div class="report-img-empty">சான்று படம்<br>இடப்படவில்லை</div>';
+  /* Heading (indicator text) above the photo, date + user's note below it —
+     matching the sample report layout. */
   return '<div class="report-entry">'+
-    img+
-    '<div class="report-ind-body">'+
+    '<div class="report-ind-header">'+
       '<div class="report-ind-title">'+escapeHtml(item.indTitle)+'</div>'+
-      '<div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:4px">'+escapeHtml(item.critTitle)+'</div>'+
+      '<div style="font-size:.8rem;color:var(--ink-soft);margin-bottom:8px">'+escapeHtml(item.critTitle)+'</div>'+
+    '</div>'+
+    img+
+    '<div class="report-ind-body" style="margin-top:10px">'+
       '<div style="font-size:.8rem;color:var(--gold);font-weight:600;margin-bottom:4px">திகதி: '+(e.date?escapeHtml(e.date):'—')+'</div>'+
       '<div class="report-ind-note">'+(e.note ? escapeHtml(e.note) : '<em>குறிப்பு எதுவும் இடப்படவில்லை.</em>')+'</div>'+
     '</div>'+
