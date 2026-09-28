@@ -1007,16 +1007,17 @@ function getSecondaryApp(){
 }
 
 /* Every school keeps its own users subcollection: schools/{schoolId}/users/{uid}.
-   To find which school a signed-in account belongs to WITHOUT already
-   knowing the schoolId (needed right after login), a simple top-level
-   "userSchoolMap/{uid}" document is kept in sync alongside it — a single,
-   direct, by-ID read that needs no collectionGroup query and no fragile
-   Firestore Rule to get right. */
-function userSchoolMapRef(uid){ return db.collection('userSchoolMap').doc(uid); }
-
-function findMyMembership(myUid){
-  return userSchoolMapRef(myUid).get().then(function(doc){
-    return doc.exists ? doc.data() : null; // {schoolId, role, email}
+   To find which school(s) a signed-in account belongs to (without already
+   knowing the schoolId), we store a "uid" field on every such document and
+   run a collectionGroup query across all schools for that field. */
+function findMyMemberships(myUid){
+  return db.collectionGroup('users').where('uid','==',myUid).get().then(function(snap){
+    var rows = [];
+    snap.forEach(function(doc){
+      var schoolId = doc.ref.parent.parent.id;
+      rows.push({schoolId:schoolId, role:doc.data().role, email:doc.data().email});
+    });
+    return rows;
   });
 }
 
@@ -1054,9 +1055,12 @@ function routeAfterAuth(){
     return;
   }
 
-  findMyMembership(state.user.uid).then(function(m){
-    if(!m || !m.schoolId){ state.view='noRole'; renderApp(); return; }
-    enterSchoolAsMember(m.schoolId, m.role);
+  findMyMemberships(state.user.uid).then(function(rows){
+    if(!rows.length){ state.view='noRole'; renderApp(); return; }
+    if(rows.length===1){ enterSchoolAsMember(rows[0].schoolId, rows[0].role); return; }
+    state.mySchools = rows;
+    state.view = 'schoolPicker';
+    renderApp();
   }).catch(function(err){
     state.view = 'authError';
     state.authErrorMessage = (err && (err.code || err.message)) || 'unknown error';
@@ -1122,7 +1126,6 @@ function migrateOldDataIntoNewSchool(){
       var data = doc.data();
       data.uid = doc.id;
       batch.set(newSchoolRef.collection('users').doc(doc.id), data);
-      batch.set(db.collection('userSchoolMap').doc(doc.id), {schoolId:schoolId, role:data.role, email:data.email});
     });
     return batch.commit();
   }).then(function(){
@@ -1869,40 +1872,9 @@ function renderSchoolSetup(app){
     '<div class="error-msg" id="setupErr"></div>'+
     '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பங்கு</th><th></th></tr></thead>'+
     '<tbody id="usersTbody"><tr><td colspan="3" style="color:var(--ink-soft)">ஏற்றப்படுகிறது…</td></tr></tbody></table>'+
-    '<div class="criterion" style="margin-top:24px">'+
-      '<div class="criterion-head"><span class="crit-num">மீட்பு கருவி</span></div>'+
-      '<p class="hint" style="margin:0 0 10px">பள்ளிகள் பிரிக்கப்படுவதற்கு முன் ஒரு துறையில் பதிவு செய்யப்பட்ட தகவல் இந்தப் பள்ளியில் தற்போது தெரியவில்லை எனில், அந்தத் துறையைத் தெரிவு செய்து கீழுள்ள பொத்தானை அழுத்தவும் — பழைய இடத்தில் இன்னும் இருக்கும் அந்தத் துறையின் தரவை இந்தப் பள்ளிக்குள் மீண்டும் கொண்டு வரும். <strong>இது இந்தத் துறையில் இப்போது இந்தப் பள்ளியில் உள்ளதை நீக்கி, பழைய தரவால் மாற்றும்</strong> — எனவே தேவையான துறைக்கு மட்டும் பயன்படுத்தவும்.</p>'+
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'+
-        '<div class="field" style="min-width:260px"><label>துறை</label><select id="recoverDept" class="role-select">'+
-          DEPARTMENTS.map(function(d){ return '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>'; }).join('')+
-        '</select></div>'+
-        '<button type="button" class="btn-outline" id="btnRecoverDept">இந்தத் துறையின் பழைய தரவைக் கொண்டுவா</button>'+
-      '</div>'+
-      '<div class="error-msg" id="recoverMsg"></div>'+
-    '</div>'+
     '<footer class="app-footer">புதிதாக உருவாக்கிய மின்னஞ்சல் மற்றும் தற்காலிகக் கடவுச்சொல்லை அந்தந்தத் துறைப் பொறுப்பாளரிடம் நேரடியாக வழங்கவும்.</footer>';
 
   document.getElementById('btnBackAdmin').onclick=function(){ state.view='admin'; renderApp(); };
-
-  document.getElementById('btnRecoverDept').onclick=function(){
-    var deptId = document.getElementById('recoverDept').value;
-    var dept = deptById(deptId);
-    var msgEl = document.getElementById('recoverMsg');
-    msgEl.textContent='';
-    if(!confirm('"'+dept.name+'" துறையில் இந்தப் பள்ளியில் தற்போது உள்ள தரவு நீக்கப்பட்டு, பழைய இடத்தில் இருக்கும் தரவால் மாற்றப்படும். தொடரவா?')) return;
-    db.collection('departments').doc(deptId).get().then(function(doc){
-      if(!doc.exists) throw new Error('இந்தத் துறைக்கான பழைய தரவு எதுவும் கிடைக்கவில்லை.');
-      return deptsColRef().doc(deptId).set(doc.data());
-    }).then(function(){
-      unsubscribeDept(deptId);
-      delete state.deptData[deptId];
-      msgEl.style.color='var(--sage)';
-      msgEl.textContent='"'+dept.name+'" துறையின் பழைய தரவு கொண்டு வரப்பட்டது ✓';
-    }).catch(function(err){
-      msgEl.style.color='';
-      msgEl.textContent = err.message;
-    });
-  };
 
   function saveSchoolMeta(){
     schoolDocRef().set(school, {merge:true}).then(function(){
@@ -1966,10 +1938,7 @@ function renderSchoolSetup(app){
         var targetUid = sel.getAttribute('data-role-for');
         usersColRef().doc(targetUid).update({role:sel.value}).then(function(){
           var u = state.usersCache.find(function(x){ return x.uid===targetUid; });
-          if(u){
-            u.role = sel.value;
-            userSchoolMapRef(targetUid).set({schoolId:state.schoolId, role:sel.value, email:u.email}).catch(function(){});
-          }
+          if(u) u.role = sel.value;
         }).catch(function(err){ alert('பங்கை மாற்ற முடியவில்லை: '+err.message); });
       };
     });
@@ -1984,9 +1953,7 @@ function renderSchoolSetup(app){
       btn.onclick=function(){
         var targetUid = btn.getAttribute('data-uid');
         if(!confirm('இந்தப் பயனரின் அணுகல் பங்கை நீக்கவா? (இது Firebase Authentication இலிருந்து கணக்கையே நீக்காது — தேவைப்பட்டால் அதை Firebase console இல் தனியாக நீக்க வேண்டும்.)')) return;
-        usersColRef().doc(targetUid).delete().then(function(){
-          return userSchoolMapRef(targetUid).delete().catch(function(){});
-        }).then(loadUsers).catch(function(err){ alert(err.message); });
+        usersColRef().doc(targetUid).delete().then(loadUsers).catch(function(err){ alert(err.message); });
       };
     });
   }
@@ -2004,8 +1971,6 @@ function renderSchoolSetup(app){
     secAuth.createUserWithEmailAndPassword(email, pass).then(function(cred){
       var newUid = cred.user.uid;
       return usersColRef().doc(newUid).set({email:email, role:role, uid:newUid}).then(function(){
-        return userSchoolMapRef(newUid).set({schoolId:state.schoolId, role:role, email:email});
-      }).then(function(){
         return secAuth.signOut();
       });
     }).then(function(){
