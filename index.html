@@ -1494,6 +1494,39 @@ function renderSchoolPicker(app){
   document.getElementById('btnPickerLogout').onclick=function(){ auth.signOut(); };
 }
 
+/* "பயனர் → பள்ளி நியமிப்புகள்" table: lets the superadmin delete a user's
+   school/role assignment (schools/{schoolId}/users/{uid} and
+   userSchoolMap/{uid}) when that user is no longer needed. This removes
+   the user's access/assignment records only — it does not delete their
+   Firebase Authentication sign-in account, which the client SDK has no
+   permission to do for another user; if the account itself should be
+   removed too, that still needs to be done from the Firebase console. */
+function wireUserMapDeleteButtons(container){
+  container.querySelectorAll('[data-del-user]').forEach(function(btn){
+    btn.onclick=function(){
+      var uid = btn.getAttribute('data-del-user');
+      var schoolId = btn.getAttribute('data-del-school');
+      var email = btn.getAttribute('data-del-email') || uid;
+      if(!confirm('"'+email+'" எனும் பயனரின் பள்ளி நியமிப்பை நீக்கவா? (இவரது உள்நுழைவுக் கணக்கு நீக்கப்படாது — இனி எந்தப் பள்ளிக்கும் அணுகல் இருக்காது.)')) return;
+      btn.disabled = true;
+      btn.textContent = 'நீக்குகிறது…';
+      var p = schoolId
+        ? db.collection('schools').doc(schoolId).collection('users').doc(uid).delete()
+        : Promise.resolve();
+      p.then(function(){
+        return db.collection('userSchoolMap').doc(uid).delete();
+      }).then(function(){
+        var row = container.querySelector('[data-row-uid="'+uid+'"]');
+        if(row) row.remove();
+      }).catch(function(err){
+        btn.disabled = false;
+        btn.textContent = 'நீக்கு';
+        alert('நீக்க முடியவில்லை: '+err.message);
+      });
+    };
+  });
+}
+
 function renderSuperAdmin(app){
   subscribeSchoolsList(function(){ if(state.view==='superadmin') renderSuperAdmin(app); });
   subscribePendingAccounts(function(){ if(state.view==='superadmin') renderSuperAdmin(app); });
@@ -1735,13 +1768,15 @@ function renderSuperAdmin(app){
         (state.schools||[]).forEach(function(s){ schoolNameById[s.id]=s.name; });
         var resEl = document.getElementById('mapResult');
         resEl.innerHTML = rows.length ?
-          '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பள்ளி</th><th>பள்ளி ID</th><th>பங்கு (role)</th></tr></thead><tbody>'+
+          '<table class="setup-table"><thead><tr><th>மின்னஞ்சல்</th><th>பள்ளி</th><th>பள்ளி ID</th><th>பங்கு (role)</th><th>நீக்கு</th></tr></thead><tbody>'+
           rows.map(function(r){
-            return '<tr><td>'+escapeHtml(r.email||r.uid)+'</td><td>'+escapeHtml(schoolNameById[r.schoolId]||'(தெரியவில்லை)')+'</td>'+
-              '<td style="font-size:.72rem;color:var(--ink-soft)">'+escapeHtml(r.schoolId||'')+'</td><td>'+escapeHtml(r.role||'')+'</td></tr>';
+            return '<tr data-row-uid="'+escapeHtml(r.uid)+'"><td>'+escapeHtml(r.email||r.uid)+'</td><td>'+escapeHtml(schoolNameById[r.schoolId]||'(தெரியவில்லை)')+'</td>'+
+              '<td style="font-size:.72rem;color:var(--ink-soft)">'+escapeHtml(r.schoolId||'')+'</td><td>'+escapeHtml(r.role||'')+'</td>'+
+              '<td><button type="button" class="btn-tiny" data-del-user="'+escapeHtml(r.uid)+'" data-del-school="'+escapeHtml(r.schoolId||'')+'" data-del-email="'+escapeHtml(r.email||r.uid)+'">நீக்கு</button></td></tr>';
           }).join('')+'</tbody></table>'
           : '<p class="hint">பயனர்-பள்ளி நியமிப்புகள் எதுவும் இல்லை.</p>';
         mapBtn.style.display='none';
+        wireUserMapDeleteButtons(resEl);
       }).catch(function(err){
         document.getElementById('mapResult').innerHTML = '<p class="error-msg">ஏற்ற முடியவில்லை: '+escapeHtml(err.message)+'</p>';
         mapBtn.disabled = false;
