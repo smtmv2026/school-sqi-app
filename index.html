@@ -790,6 +790,8 @@ var DEPT1_TAVANAI_CRIT_TITLE = 'தவணைப் பரீட்சைப் �
 var DEPT1_SCHOOLASSESS_CRIT_TITLE = 'பாடசாலை மட்ட கணிப்பீட்டு முன்னேற்றத்தை அளவிடல்';
 var GRADE_COLS_6_11 = ['6','7','8','9','10','11'];
 var GRADE_COLS_12_13 = ['12','13'];
+/* 1.2.2.10 அழகியல் பாடங்கள் — பாடவாரியாகத் தனித்தனிப் பகுப்பாய்வு */
+var AESTHETIC_SUBJECTS = ['சித்திரம்','நடனம்','சங்கீதம்','நாடகம்','இலக்கிய நயம்'];
 var DEPT1_CALC_CONFIG = {
   'தாய்மொழி — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'கணிதம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
@@ -800,7 +802,7 @@ var DEPT1_CALC_CONFIG = {
   'இரண்டாம் மொழி (சிங்களம்/தமிழ்) — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'சுகாதாரமும் உடற்கல்வியும் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'செயன்முறை தொழில்நுட்பத் திறன்கள் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
-  'அழகியல் பாடங்கள் (சித்திரம்/நடனம்/சங்கீதம்/நாடகம்/இலக்கிய நயம்) — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'அழகியல் பாடங்கள் (சித்திரம்/நடனம்/சங்கீதம்/நாடகம்/இலக்கிய நயம்) — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, rows:AESTHETIC_SUBJECTS},
   'முதலாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'மூன்றாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'தரம் 12-13 கலைத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
@@ -848,6 +850,9 @@ function attachDept1Calc(dData){
         if(!ind.calcValues) ind.calcValues = {};
         ind.score = 0; // any earlier manually-picked score no longer applies once this becomes a calculated indicator
       }
+      if(ind.calc && cfg && cfg.rows && !ind.calc.rows){
+        ind.calc = Object.assign({}, ind.calc, {rows:cfg.rows});
+      }
       if(ind.calc && ind.calc.type==='percentAvg' && !ind.calc.terms){
         ind.calc = Object.assign({}, ind.calc, {terms:true});
       }
@@ -872,6 +877,14 @@ function calcAverageAndScore(ind, term){
     var pct = (completed/total)*100;
     return {avg:Math.round(pct*10)/10, score:percentToScore(pct)};
   }
+  if(ind.calc.rows){
+    var st = subjectStats(ind, term);
+    if(st.subjAvgs.length){
+      var sa = st.subjAvgs.reduce(function(a,b){return a+b;},0)/st.subjAvgs.length;
+      return {avg:Math.round(sa*10)/10, score:percentToScore(sa)};
+    }
+    /* பாடவாரிப் பதிவுகள் இல்லையெனில் — முன்னைய ஒருங்கிணைந்த (தரவாரி) % பெறுமதிகளைப் பயன்படுத்து */
+  }
   var cols = ind.calc.columns;
   var vals = [];
   cols.forEach(function(col){
@@ -881,6 +894,29 @@ function calcAverageAndScore(ind, term){
   if(!vals.length) return {avg:null, score:0};
   var avg = vals.reduce(function(a,b){return a+b;},0)/vals.length;
   return {avg:Math.round(avg*10)/10, score:percentToScore(avg)};
+}
+/* பாடவாரிப் புள்ளிவிபரம்: ஒவ்வொரு பாடத்தினதும் தரங்களின் சராசரி, ஒவ்வொரு தரத்தினதும் பாடங்களின் சராசரி.
+   சேமிப்புச் சாவி: "பாடம்|தரம்" (எ.கா. "சித்திரம்|6"). */
+function subjectStats(ind, term){
+  var cv = calcValuesFor(ind, term);
+  var cols = ind.calc.columns, rows = ind.calc.rows || [];
+  function num(v){ if(v===null||v===undefined||v==='') return null; var n=parseFloat(v); return isNaN(n)?null:n; }
+  function avgOf(a){ return a.length ? Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*10)/10 : null; }
+  var bySubj = {}, subjAvgs = [], byGrade = {};
+  rows.forEach(function(sub){
+    var v=[]; cols.forEach(function(col){ var n=num(cv[sub+'|'+col]); if(n!=null) v.push(n); });
+    bySubj[sub] = avgOf(v); if(bySubj[sub]!=null) subjAvgs.push(bySubj[sub]);
+  });
+  cols.forEach(function(col){
+    var v=[]; rows.forEach(function(sub){ var n=num(cv[sub+'|'+col]); if(n!=null) v.push(n); });
+    byGrade[col] = avgOf(v);
+  });
+  return {bySubj:bySubj, byGrade:byGrade, subjAvgs:subjAvgs};
+}
+/* ஒரு பாடத்தின் தவணை 1-3 ஒட்டுமொத்தச் சராசரி */
+function subjectOverall(ind, sub){
+  var a=[]; ['1','2','3'].forEach(function(t){ var v=subjectStats(ind,t).bySubj[sub]; if(v!=null) a.push(v); });
+  return a.length ? Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*10)/10 : null;
 }
 /* தவணை 1-3 இல் % இடப்பட்ட தவணைகளின் சராசரி → சுட்டியின் ஒட்டுமொத்தப் புள்ளி */
 function indicatorOverall(ind){
@@ -1934,12 +1970,14 @@ function calcTableHtml(ind, forReport){
       percentTableHtml(ind, cur, false)+
       '<p class="hint">'+terms.map(function(t){ var r=calcAverageAndScore(ind,t); return 'தவணை '+t+': '+(r.avg!=null?r.avg+'%':'—'); }).join(' · ')+
       ' — ஒட்டுமொத்தம்: '+(ov.avg!=null?ov.avg+'% ('+ov.score+' — '+ovGrade.label+')':'—')+'</p>'+
+      (ind.calc.rows ? '<p class="hint"><b>பாடவாரி ஒட்டுமொத்தம் (தவணை 1-3):</b> '+ind.calc.rows.map(function(sub){ var a=subjectOverall(ind,sub); return escapeHtml(sub)+': '+(a!=null?a+'% ('+percentToScore(a)+')':'—'); }).join(' · ')+'</p>' : '')+
     '</div>';
   }
   return '<div class="calc-table-wrap">'+percentTableHtml(ind, null, !!forReport)+'</div>';
 }
 
 function percentTableHtml(ind, term, readonly){
+  if(ind.calc.rows) return subjectMatrixTableHtml(ind, term, readonly);
   var cols = ind.calc.columns;
   var cv = calcValuesFor(ind, term);
   var res = calcAverageAndScore(ind, term);
@@ -1959,6 +1997,32 @@ function percentTableHtml(ind, term, readonly){
       ? 'இந்தத் தவணையில் இலக்கை அடைந்த மாணவர்களின் நூற்றுவீதத்தை (%) மட்டும் இடவும் — புள்ளி தானாகக் கணக்கிடப்படும்.'
       : 'ஒவ்வொரு தரத்திலும் 40+ புள்ளி பெற்ற மாணவர்களின் நூற்றுவீதத்தை (%) மட்டும் இடவும் — சராசரியும் புள்ளியும் தானாகக் கணக்கிடப்படும்.')+
       ' ஒவ்வொரு தவணையையும் (தவணை 1, 2, 3) தனித்தனியே இடலாம்.</p>');
+}
+
+function subjectMatrixTableHtml(ind, term, readonly){
+  var cols = ind.calc.columns, rows = ind.calc.rows;
+  var cv = calcValuesFor(ind, term);
+  var st = subjectStats(ind, term);
+  var res = calcAverageAndScore(ind, term);
+  function badge(avg){ if(avg==null) return '—'; var g=gradeInfo(avg); return '<span class="badge small '+g.cls+'">'+percentToScore(avg)+' — '+g.label+'</span>'; }
+  var head = '<tr><th>பாடம்</th>'+cols.map(function(col){ return '<th>தரம் '+escapeHtml(col)+'</th>'; }).join('')+'<th>சராசரி %</th><th>புள்ளி</th></tr>';
+  var body = rows.map(function(sub){
+    var a = st.bySubj[sub];
+    return '<tr><th style="text-align:left">'+escapeHtml(sub)+'</th>'+cols.map(function(col){
+      var key = sub+'|'+col, v = cv[key]!=null ? cv[key] : '';
+      return '<td><input type="number" min="0" max="100" step="0.1" class="calc-input" '+(readonly?'readonly ':'data-col="'+escapeHtml(key)+'" ')+'value="'+escapeHtml(v)+'" placeholder="%"></td>';
+    }).join('')+'<td class="calc-avg">'+(a!=null?a+'%':'—')+'</td><td>'+badge(a)+'</td></tr>';
+  }).join('');
+  var gradeRow = '<tr><th style="text-align:left">தரவாரிச் சராசரி</th>'+cols.map(function(col){
+    var g = st.byGrade[col]; return '<td class="calc-avg">'+(g!=null?g+'%':'—')+'</td>';
+  }).join('')+'<td class="calc-avg">'+(res.avg!=null?res.avg+'%':'—')+'</td><td>'+badge(res.avg)+'</td></tr>';
+  /* முன்னைய ஒருங்கிணைந்த பதிவுகள் (பாடவாரிப் பிரிப்புக்கு முன் இடப்பட்டவை) — காண்பிக்க மட்டும் */
+  var legacy = cols.filter(function(col){ return cv[col]!=null && cv[col]!==''; });
+  var legacyHtml = legacy.length ? '<p class="hint">முன்னைய ஒருங்கிணைந்த பதிவு (பாடவாரிப் பிரிப்புக்கு முன்): '+
+    legacy.map(function(col){ return 'தரம் '+escapeHtml(col)+': '+escapeHtml(cv[col])+'%'; }).join(' · ')+
+    (st.subjAvgs.length ? ' — பாடவாரிப் பதிவுகள் இடப்பட்டுள்ளதால் இது கணக்கில் எடுக்கப்படுவதில்லை.' : ' — பாடவாரிப் பதிவுகள் இடப்படும் வரை இதுவே கணக்கில் எடுக்கப்படும்.')+'</p>' : '';
+  return '<table class="calc-table"><thead>'+head+'</thead><tbody>'+body+gradeRow+'</tbody></table>'+legacyHtml+
+    (readonly ? '' : '<p class="hint">ஒவ்வொரு அழகியல் பாடத்திற்கும், ஒவ்வொரு தரத்திலும் 40+ புள்ளி பெற்ற மாணவர்களின் நூற்றுவீதத்தை (%) இடவும். பாடவாரிச் சராசரியும் புள்ளியும், தரவாரிச் சராசரியும் தானாகக் கணக்கிடப்படும்; சுட்டியின் புள்ளி = பாடங்களின் சராசரிகளின் சராசரி. அப்பாடம் கற்பிக்கப்படாத தரங்களை வெறுமையாக விடவும். ஒவ்வொரு தவணையையும் தனித்தனியே இடலாம்.</p>');
 }
 
 function indicatorRowHtml(ind, idx, refNum){
