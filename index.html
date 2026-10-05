@@ -2057,6 +2057,18 @@ function subjectMatrixTableHtml(ind, term, readonly){
     (readonly ? '' : '<p class="hint">'+(userRows ? 'சேர்க்கப்பட்ட பாடங்கள் தவணை 1, 2, 3 மூன்றிற்கும் பொருந்தும். ' : '')+'ஒவ்வொரு '+(userRows?'':'அழகியல் ')+'பாடத்திற்கும், ஒவ்வொரு தரத்திலும் 40+ புள்ளி பெற்ற மாணவர்களின் நூற்றுவீதத்தை (%) இடவும். பாடவாரிச் சராசரியும் புள்ளியும், தரவாரிச் சராசரியும் தானாகக் கணக்கிடப்படும்; சுட்டியின் புள்ளி = பாடங்களின் சராசரிகளின் சராசரி. அப்பாடம் கற்பிக்கப்படாத தரங்களை வெறுமையாக விடவும். ஒவ்வொரு தவணையையும் தனித்தனியே இடலாம்.</p>');
 }
 
+/* கணக்கிடப்படும் சுட்டிகளுக்கும் (1.1.1.x, 1.2.2.x, 1.2.3.x) மதிப்பீட்டுப் புள்ளித் தெரிவு.
+   இயல்பாக கணக்கிடப்பட்ட புள்ளி தானாக நிரப்பப்படும்; பயனர் வேறு புள்ளியைத் தெரிவுசெய்தால்
+   அது கைமுறைப் புள்ளியாகப் பேணப்படும் (ind.scoreManual). */
+function calcScoreControlHtml(ind){
+  var auto = indicatorOverall(ind);
+  var autoTxt = auto.avg!=null ? (auto.score+' ('+auto.avg+'%)') : '—';
+  var note = ind.scoreManual
+    ? '<span class="hint" style="margin:0">கைமுறையாகத் தெரிவுசெய்யப்பட்டது · கணக்கிடப்பட்ட புள்ளி: '+autoTxt+' <button type="button" class="btn-tiny" data-role="scoreauto">கணக்கிடப்பட்ட புள்ளியைப் பயன்படுத்து</button></span>'
+    : '<span class="hint" style="margin:0">கணக்கிடப்பட்ட புள்ளி: '+autoTxt+' (தேவையெனில் மாற்றலாம்)</span>';
+  return '<div class="ind-controls" style="margin:4px 0 8px"><label style="font-weight:600">மதிப்பீட்டுப் புள்ளி:</label> <select class="ind-score" data-role="score">'+scoreSelectHtml(ind.score)+'</select> '+note+'</div>';
+}
+
 function indicatorRowHtml(ind, idx, refNum){
   var entries = ind.entries || [];
   return '<div class="ind-row" data-ind="'+ind.id+'">'+
@@ -2064,7 +2076,7 @@ function indicatorRowHtml(ind, idx, refNum){
     '<div class="ind-main">'+
       '<div class="ind-title">'+escapeHtml(ind.title)+'</div>'+
       (ind.calc ?
-        calcTableHtml(ind) :
+        calcTableHtml(ind)+calcScoreControlHtml(ind) :
         '<div class="ind-controls"><select class="ind-score" data-role="score">'+scoreSelectHtml(ind.score)+'</select></div>'
       )+
       '<div class="entries-list">'+entries.map(entryRowHtml).join('')+'</div>'+
@@ -2198,6 +2210,16 @@ function renderDeptView(app, deptId, opts){
       if(scoreSel){
         scoreSel.onchange=function(e){
           ind.score=parseInt(e.target.value,10)||0;
+          if(ind.calc){ ind.scoreManual = (ind.score !== indicatorOverall(ind).score); }
+          scheduleSaveDept(deptId);
+          renderDeptView(app, deptId, opts);
+        };
+      }
+      var scoreAutoBtn = rowEl.querySelector('[data-role="scoreauto"]');
+      if(scoreAutoBtn){
+        scoreAutoBtn.onclick=function(){
+          ind.scoreManual = false;
+          ind.score = indicatorOverall(ind).score;
           scheduleSaveDept(deptId);
           renderDeptView(app, deptId, opts);
         };
@@ -2226,7 +2248,7 @@ function renderDeptView(app, deptId, opts){
             var st = ind.calcTerms[t] || {};
             Object.keys(st).forEach(function(k){ if(k.indexOf(name+'|')===0) delete st[k]; });
           });
-          ind.score = indicatorOverall(ind).score;
+          if(!ind.scoreManual) ind.score = indicatorOverall(ind).score;
           scheduleSaveDept(deptId);
           renderDeptView(app, deptId, opts);
         };
@@ -2253,7 +2275,7 @@ function renderDeptView(app, deptId, opts){
           var v = e.target.value;
           if(v===''){ delete store[col]; } else { store[col] = v; }
           var res = indicatorOverall(ind);
-          ind.score = res.score;
+          if(!ind.scoreManual) ind.score = res.score;
           scheduleSaveDept(deptId);
           renderDeptView(app, deptId, opts);
         };
@@ -2431,7 +2453,7 @@ function reportIndicatorSummaryHtml(ind, refNum){
     : (ind.calc ? '' : '<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>');
   return '<div class="report-ind">'+
     '<div class="report-ind-title">'+numHtml+escapeHtml(ind.title)+'</div>'+
-    (ind.calc ? '' : '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>')+
+    '<div class="badge small" style="margin-bottom:8px">'+(ind.calc?'மதிப்பீட்டுப் புள்ளி: ':'')+escapeHtml(scoreTxt)+'</div>'+
     calcHtml+
     entriesHtml+
   '</div>';
