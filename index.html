@@ -798,7 +798,7 @@ var DEPT1_CALC_CONFIG = {
   'விஞ்ஞானம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'ஆங்கிலம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'வரலாறு — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
-  'சமயம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'சமயம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, userRows:true},
   'இரண்டாம் மொழி (சிங்களம்/தமிழ்) — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'சுகாதாரமும் உடற்கல்வியும் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'செயன்முறை தொழில்நுட்பத் திறன்கள் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
@@ -2041,7 +2041,7 @@ function subjectMatrixTableHtml(ind, term, readonly){
     legacy.map(function(col){ return 'தரம் '+escapeHtml(col)+': '+escapeHtml(cv[col])+'%'; }).join(' · ')+
     (st.subjAvgs.length ? ' — பாடவாரிப் பதிவுகள் இடப்பட்டுள்ளதால் இது கணக்கில் எடுக்கப்படுவதில்லை.' : ' — பாடவாரிப் பதிவுகள் இடப்படும் வரை இதுவே கணக்கில் எடுக்கப்படும்.')+'</p>' : '';
   var addBar = (userRows && !readonly) ? '<div class="ind-controls" style="margin:6px 0">'+
-      '<input type="text" class="subj-new" data-role="newsubj" placeholder="பாடத்தின் பெயர் (எ.கா. வணிகக் கல்வியும் கணக்கீடும்)" style="padding:6px;border:1px solid var(--line);border-radius:4px;min-width:240px"> '+
+      '<input type="text" class="subj-new" data-role="newsubj" placeholder="'+((ind.title||'').indexOf('சமயம்')===0 ? 'சமயப் பாடத்தின் பெயர் (எ.கா. சைவநெறி, கத்தோலிக்கம், கிறிஸ்தவம், இஸ்லாம், பௌத்தம்)' : 'பாடத்தின் பெயர் (எ.கா. வணிகக் கல்வியும் கணக்கீடும்)')+'" style="padding:6px;border:1px solid var(--line);border-radius:4px;min-width:240px"> '+
       '<button type="button" class="btn-outline small" data-role="addsubj">+ பாடம் சேர்</button></div>' : '';
   if(userRows && !rows.length){
     return addBar+legacyHtml+(readonly ? '<p class="hint">பாடங்கள் எதுவும் சேர்க்கப்படவில்லை.</p>' :
