@@ -808,9 +808,9 @@ var DEPT1_CALC_CONFIG = {
   'தரம் 12-13 கலைத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
   'தரம் 12-13 வர்த்தகத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
   'தரம் 12-13 உயிரியல்/பௌதிக விஞ்ஞானம்/தொழில்நுட்பத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
-  'தரம் 6-9 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'},
-  'தரம் 10-11 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'},
-  'தரம் 12-13 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'}
+  'தரம் 6-9 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio', terms:true},
+  'தரம் 10-11 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio', terms:true},
+  'தரம் 12-13 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio', terms:true}
 };
 /* d1 முதன்மைநிலை 1/2/3 சுட்டிகளில் தேர்ச்சிகளின் எண்ணிக்கை திருத்தம்
    (48 / 50 / 52). ஏற்கனவே சேமிக்கப்பட்ட சகல பாடசாலைகளுக்கும், துறை 1 இற்கு
@@ -855,6 +855,10 @@ function attachDept1Calc(dData){
       }
       if(ind.calc && cfg && cfg.rows && !ind.calc.rows){
         ind.calc = Object.assign({}, ind.calc, {rows:cfg.rows});
+      }
+      /* 1.2.3 (பாடசாலைமட்டக் கணிப்பீடு) — தவணை 1, 2, 3 எனப் பிரித்தல்; முன்னர் இட்ட பெறுமதிகள் தவணை 1 இற்குச் செல்லும் */
+      if(ind.calc && ind.calc.type==='completionRatio' && !ind.calc.terms){
+        ind.calc = Object.assign({}, ind.calc, {terms:true});
       }
       if(ind.calc && ind.calc.type==='percentAvg' && !ind.calc.terms){
         ind.calc = Object.assign({}, ind.calc, {terms:true});
@@ -1942,21 +1946,8 @@ function entryRowHtml(entry){
 }
 
 function calcTableHtml(ind, forReport){
-  if(ind.calc.type==='completionRatio'){
-    var res0 = calcAverageAndScore(ind);
-    var grade0 = res0.avg!=null ? gradeInfo(res0.avg) : null;
-    var tv = (ind.calcValues && ind.calcValues.total!=null) ? ind.calcValues.total : '';
-    var cv = (ind.calcValues && ind.calcValues.completed!=null) ? ind.calcValues.completed : '';
-    return '<div class="calc-table-wrap">'+
-      '<table class="calc-table"><thead><tr><th>தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கை</th><th>கணிப்பீடு பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கை</th><th>நூற்று வீதம் (%)</th><th>புள்ளி</th></tr></thead>'+
-      '<tbody><tr>'+
-        '<td><input type="number" min="0" step="1" class="calc-input" data-col="total" value="'+escapeHtml(tv)+'" placeholder="மொத்தம்"></td>'+
-        '<td><input type="number" min="0" step="1" class="calc-input" data-col="completed" value="'+escapeHtml(cv)+'" placeholder="பூரணமானவை"></td>'+
-        '<td class="calc-avg">'+(res0.avg!=null?res0.avg+'%':'—')+'</td>'+
-        '<td><span class="badge small '+(grade0?grade0.cls:'')+'">'+(res0.avg!=null?res0.score+' — '+grade0.label:'—')+'</span></td>'+
-      '</tr></tbody></table>'+
-      '<p class="hint">அந்தத் தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கையையும், அவற்றுள் பாடசாலைமட்டக் கணிப்பீட்டைப் பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கையையும் மட்டும் இடவும் — % ஆயும் புள்ளியாகவும் தானாகக் கணக்கிடப்படும்.</p>'+
-    '</div>';
+  if(ind.calc.type==='completionRatio' && !ind.calc.terms){
+    return completionTableHtml(ind, null, !!forReport);
   }
   if(ind.calc.terms){
     var terms = ['1','2','3'];
@@ -1982,7 +1973,26 @@ function calcTableHtml(ind, forReport){
   return '<div class="calc-table-wrap">'+percentTableHtml(ind, null, !!forReport)+'</div>';
 }
 
+function completionTableHtml(ind, term, readonly){
+    var res0 = calcAverageAndScore(ind, term);
+    var cvals = calcValuesFor(ind, term);
+    var grade0 = res0.avg!=null ? gradeInfo(res0.avg) : null;
+    var tv = (cvals.total!=null) ? cvals.total : '';
+    var cv = (cvals.completed!=null) ? cvals.completed : '';
+    return '<div class="calc-table-wrap">'+
+      '<table class="calc-table"><thead><tr><th>தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கை</th><th>கணிப்பீடு பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கை</th><th>நூற்று வீதம் (%)</th><th>புள்ளி</th></tr></thead>'+
+      '<tbody><tr>'+
+        '<td><input type="number" min="0" step="1" class="calc-input" '+(readonly?'readonly ':'data-col="total" ')+' value="'+escapeHtml(tv)+'" placeholder="மொத்தம்"></td>'+
+        '<td><input type="number" min="0" step="1" class="calc-input" '+(readonly?'readonly ':'data-col="completed" ')+' value="'+escapeHtml(cv)+'" placeholder="பூரணமானவை"></td>'+
+        '<td class="calc-avg">'+(res0.avg!=null?res0.avg+'%':'—')+'</td>'+
+        '<td><span class="badge small '+(grade0?grade0.cls:'')+'">'+(res0.avg!=null?res0.score+' — '+grade0.label:'—')+'</span></td>'+
+      '</tr></tbody></table>'+
+      (readonly ? '' : '<p class="hint">அந்தத் தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கையையும், அவற்றுள் பாடசாலைமட்டக் கணிப்பீட்டைப் பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கையையும் மட்டும் இடவும் — % ஆயும் புள்ளியாகவும் தானாகக் கணக்கிடப்படும்.'+(term ? ' ஒவ்வொரு தவணையையும் (தவணை 1, 2, 3) தனித்தனியே இடலாம்.' : '')+'</p>')+
+    '</div>';
+}
+
 function percentTableHtml(ind, term, readonly){
+  if(ind.calc.type==='completionRatio') return completionTableHtml(ind, term, readonly);
   if(hasSubjectRows(ind)) return subjectMatrixTableHtml(ind, term, readonly);
   var cols = ind.calc.columns;
   var cv = calcValuesFor(ind, term);
