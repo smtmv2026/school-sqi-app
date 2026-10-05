@@ -803,8 +803,8 @@ var DEPT1_CALC_CONFIG = {
   'சுகாதாரமும் உடற்கல்வியும் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'செயன்முறை தொழில்நுட்பத் திறன்கள் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'அழகியல் பாடங்கள் (சித்திரம்/நடனம்/சங்கீதம்/நாடகம்/இலக்கிய நயம்) — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, rows:AESTHETIC_SUBJECTS},
-  'முதலாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
-  'மூன்றாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'முதலாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, userRows:true},
+  'மூன்றாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, userRows:true},
   'தரம் 12-13 கலைத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
   'தரம் 12-13 வர்த்தகத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
   'தரம் 12-13 உயிரியல்/பௌதிக விஞ்ஞானம்/தொழில்நுட்பத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
@@ -850,6 +850,9 @@ function attachDept1Calc(dData){
         if(!ind.calcValues) ind.calcValues = {};
         ind.score = 0; // any earlier manually-picked score no longer applies once this becomes a calculated indicator
       }
+      if(ind.calc && cfg && cfg.userRows && !ind.calc.userRows){
+        ind.calc = Object.assign({}, ind.calc, {userRows:true});
+      }
       if(ind.calc && cfg && cfg.rows && !ind.calc.rows){
         ind.calc = Object.assign({}, ind.calc, {rows:cfg.rows});
       }
@@ -877,7 +880,7 @@ function calcAverageAndScore(ind, term){
     var pct = (completed/total)*100;
     return {avg:Math.round(pct*10)/10, score:percentToScore(pct)};
   }
-  if(ind.calc.rows){
+  if(hasSubjectRows(ind)){
     var st = subjectStats(ind, term);
     if(st.subjAvgs.length){
       var sa = st.subjAvgs.reduce(function(a,b){return a+b;},0)/st.subjAvgs.length;
@@ -897,9 +900,12 @@ function calcAverageAndScore(ind, term){
 }
 /* பாடவாரிப் புள்ளிவிபரம்: ஒவ்வொரு பாடத்தினதும் தரங்களின் சராசரி, ஒவ்வொரு தரத்தினதும் பாடங்களின் சராசரி.
    சேமிப்புச் சாவி: "பாடம்|தரம்" (எ.கா. "சித்திரம்|6"). */
+/* பாட வரிசைகள்: நிலையான பட்டியல் (1.2.2.10) அல்லது பயனர் சேர்த்த பாடங்கள் (1.2.2.11, 1.2.2.12 — ind.subjectList) */
+function hasSubjectRows(ind){ return !!(ind.calc && (ind.calc.rows || ind.calc.userRows)); }
+function subjectRowsOf(ind){ return ind.calc.userRows ? (ind.subjectList || []) : (ind.calc.rows || []); }
 function subjectStats(ind, term){
   var cv = calcValuesFor(ind, term);
-  var cols = ind.calc.columns, rows = ind.calc.rows || [];
+  var cols = ind.calc.columns, rows = subjectRowsOf(ind);
   function num(v){ if(v===null||v===undefined||v==='') return null; var n=parseFloat(v); return isNaN(n)?null:n; }
   function avgOf(a){ return a.length ? Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*10)/10 : null; }
   var bySubj = {}, subjAvgs = [], byGrade = {};
@@ -1970,14 +1976,14 @@ function calcTableHtml(ind, forReport){
       percentTableHtml(ind, cur, false)+
       '<p class="hint">'+terms.map(function(t){ var r=calcAverageAndScore(ind,t); return 'தவணை '+t+': '+(r.avg!=null?r.avg+'%':'—'); }).join(' · ')+
       ' — ஒட்டுமொத்தம்: '+(ov.avg!=null?ov.avg+'% ('+ov.score+' — '+ovGrade.label+')':'—')+'</p>'+
-      (ind.calc.rows ? '<p class="hint"><b>பாடவாரி ஒட்டுமொத்தம் (தவணை 1-3):</b> '+ind.calc.rows.map(function(sub){ var a=subjectOverall(ind,sub); return escapeHtml(sub)+': '+(a!=null?a+'% ('+percentToScore(a)+')':'—'); }).join(' · ')+'</p>' : '')+
+      (hasSubjectRows(ind) && subjectRowsOf(ind).length ? '<p class="hint"><b>பாடவாரி ஒட்டுமொத்தம் (தவணை 1-3):</b> '+subjectRowsOf(ind).map(function(sub){ var a=subjectOverall(ind,sub); return escapeHtml(sub)+': '+(a!=null?a+'% ('+percentToScore(a)+')':'—'); }).join(' · ')+'</p>' : '')+
     '</div>';
   }
   return '<div class="calc-table-wrap">'+percentTableHtml(ind, null, !!forReport)+'</div>';
 }
 
 function percentTableHtml(ind, term, readonly){
-  if(ind.calc.rows) return subjectMatrixTableHtml(ind, term, readonly);
+  if(hasSubjectRows(ind)) return subjectMatrixTableHtml(ind, term, readonly);
   var cols = ind.calc.columns;
   var cv = calcValuesFor(ind, term);
   var res = calcAverageAndScore(ind, term);
@@ -2000,7 +2006,8 @@ function percentTableHtml(ind, term, readonly){
 }
 
 function subjectMatrixTableHtml(ind, term, readonly){
-  var cols = ind.calc.columns, rows = ind.calc.rows;
+  var cols = ind.calc.columns, rows = subjectRowsOf(ind);
+  var userRows = !!ind.calc.userRows;
   var cv = calcValuesFor(ind, term);
   var st = subjectStats(ind, term);
   var res = calcAverageAndScore(ind, term);
@@ -2008,7 +2015,9 @@ function subjectMatrixTableHtml(ind, term, readonly){
   var head = '<tr><th>பாடம்</th>'+cols.map(function(col){ return '<th>தரம் '+escapeHtml(col)+'</th>'; }).join('')+'<th>சராசரி %</th><th>புள்ளி</th></tr>';
   var body = rows.map(function(sub){
     var a = st.bySubj[sub];
-    return '<tr><th style="text-align:left">'+escapeHtml(sub)+'</th>'+cols.map(function(col){
+    return '<tr><th style="text-align:left">'+escapeHtml(sub)+
+      ((userRows && !readonly) ? ' <button type="button" class="btn-tiny" data-role="delsubj" data-subj="'+escapeHtml(sub)+'" title="இந்தப் பாடத்தை நீக்கு">✕</button>' : '')+
+      '</th>'+cols.map(function(col){
       var key = sub+'|'+col, v = cv[key]!=null ? cv[key] : '';
       return '<td><input type="number" min="0" max="100" step="0.1" class="calc-input" '+(readonly?'readonly ':'data-col="'+escapeHtml(key)+'" ')+'value="'+escapeHtml(v)+'" placeholder="%"></td>';
     }).join('')+'<td class="calc-avg">'+(a!=null?a+'%':'—')+'</td><td>'+badge(a)+'</td></tr>';
@@ -2021,8 +2030,15 @@ function subjectMatrixTableHtml(ind, term, readonly){
   var legacyHtml = legacy.length ? '<p class="hint">முன்னைய ஒருங்கிணைந்த பதிவு (பாடவாரிப் பிரிப்புக்கு முன்): '+
     legacy.map(function(col){ return 'தரம் '+escapeHtml(col)+': '+escapeHtml(cv[col])+'%'; }).join(' · ')+
     (st.subjAvgs.length ? ' — பாடவாரிப் பதிவுகள் இடப்பட்டுள்ளதால் இது கணக்கில் எடுக்கப்படுவதில்லை.' : ' — பாடவாரிப் பதிவுகள் இடப்படும் வரை இதுவே கணக்கில் எடுக்கப்படும்.')+'</p>' : '';
-  return '<table class="calc-table"><thead>'+head+'</thead><tbody>'+body+gradeRow+'</tbody></table>'+legacyHtml+
-    (readonly ? '' : '<p class="hint">ஒவ்வொரு அழகியல் பாடத்திற்கும், ஒவ்வொரு தரத்திலும் 40+ புள்ளி பெற்ற மாணவர்களின் நூற்றுவீதத்தை (%) இடவும். பாடவாரிச் சராசரியும் புள்ளியும், தரவாரிச் சராசரியும் தானாகக் கணக்கிடப்படும்; சுட்டியின் புள்ளி = பாடங்களின் சராசரிகளின் சராசரி. அப்பாடம் கற்பிக்கப்படாத தரங்களை வெறுமையாக விடவும். ஒவ்வொரு தவணையையும் தனித்தனியே இடலாம்.</p>');
+  var addBar = (userRows && !readonly) ? '<div class="ind-controls" style="margin:6px 0">'+
+      '<input type="text" class="subj-new" data-role="newsubj" placeholder="பாடத்தின் பெயர் (எ.கா. வணிகக் கல்வியும் கணக்கீடும்)" style="padding:6px;border:1px solid var(--line);border-radius:4px;min-width:240px"> '+
+      '<button type="button" class="btn-outline small" data-role="addsubj">+ பாடம் சேர்</button></div>' : '';
+  if(userRows && !rows.length){
+    return addBar+legacyHtml+(readonly ? '<p class="hint">பாடங்கள் எதுவும் சேர்க்கப்படவில்லை.</p>' :
+      '<p class="hint">மேலே பாடத்தின் பெயரை இட்டு "+ பாடம் சேர்" ஐ அழுத்தி, இத்தொகுதியில் பாடசாலையில் கற்பிக்கப்படும் பாடங்களை ஒவ்வொன்றாகச் சேர்க்கவும். சேர்த்த பாடங்கள் தவணை 1, 2, 3 மூன்றிற்கும் பொருந்தும்.</p>');
+  }
+  return addBar+'<table class="calc-table"><thead>'+head+'</thead><tbody>'+body+gradeRow+'</tbody></table>'+legacyHtml+
+    (readonly ? '' : '<p class="hint">'+(userRows ? 'சேர்க்கப்பட்ட பாடங்கள் தவணை 1, 2, 3 மூன்றிற்கும் பொருந்தும். ' : '')+'ஒவ்வொரு '+(userRows?'':'அழகியல் ')+'பாடத்திற்கும், ஒவ்வொரு தரத்திலும் 40+ புள்ளி பெற்ற மாணவர்களின் நூற்றுவீதத்தை (%) இடவும். பாடவாரிச் சராசரியும் புள்ளியும், தரவாரிச் சராசரியும் தானாகக் கணக்கிடப்படும்; சுட்டியின் புள்ளி = பாடங்களின் சராசரிகளின் சராசரி. அப்பாடம் கற்பிக்கப்படாத தரங்களை வெறுமையாக விடவும். ஒவ்வொரு தவணையையும் தனித்தனியே இடலாம்.</p>');
 }
 
 function indicatorRowHtml(ind, idx, refNum){
@@ -2170,6 +2186,35 @@ function renderDeptView(app, deptId, opts){
           renderDeptView(app, deptId, opts);
         };
       }
+      var addSubjBtn = rowEl.querySelector('[data-role="addsubj"]');
+      if(addSubjBtn){
+        var newSubjInp = rowEl.querySelector('[data-role="newsubj"]');
+        var doAddSubj = function(){
+          var name = (newSubjInp.value||'').trim().replace(/\|/g,'/');
+          if(!name) return;
+          if(!ind.subjectList) ind.subjectList = [];
+          if(ind.subjectList.indexOf(name)>=0){ alert('இந்தப் பாடம் ஏற்கனவே சேர்க்கப்பட்டுள்ளது.'); return; }
+          ind.subjectList.push(name);
+          scheduleSaveDept(deptId);
+          renderDeptView(app, deptId, opts);
+        };
+        addSubjBtn.onclick = doAddSubj;
+        newSubjInp.onkeydown = function(e){ if(e.key==='Enter'){ e.preventDefault(); doAddSubj(); } };
+      }
+      rowEl.querySelectorAll('[data-role="delsubj"]').forEach(function(db){
+        db.onclick=function(){
+          var name = db.getAttribute('data-subj');
+          if(!confirm('"'+name+'" பாடத்தையும் அதன் சகல தவணைப் பதிவுகளையும் நீக்கவா?')) return;
+          ind.subjectList = (ind.subjectList||[]).filter(function(x){ return x!==name; });
+          if(ind.calcTerms) Object.keys(ind.calcTerms).forEach(function(t){
+            var st = ind.calcTerms[t] || {};
+            Object.keys(st).forEach(function(k){ if(k.indexOf(name+'|')===0) delete st[k]; });
+          });
+          ind.score = indicatorOverall(ind).score;
+          scheduleSaveDept(deptId);
+          renderDeptView(app, deptId, opts);
+        };
+      });
       rowEl.querySelectorAll('[data-role="termtab"]').forEach(function(tb){
         tb.onclick=function(){
           DEPT_TERM_SEL[ind.id] = tb.getAttribute('data-term');
