@@ -207,6 +207,12 @@
   .calc-table th{ background:var(--paper); color:var(--ink-soft); font-weight:600; }
   .calc-input{ width:60px; text-align:center; padding:5px; border:1px solid var(--line); border-radius:4px; }
   .calc-avg{ font-weight:700; color:var(--maroon-deep); }
+  /* 1.2.3.1-1.2.3.3: நீண்ட தலைப்புகள் இரு வரிகளாக — அட்டவணை பக்க அகலத்துக்குள் ஒரே பார்வையில் */
+  .calc-table.calc-fit{ width:100%; max-width:720px; table-layout:fixed; white-space:normal; }
+  .calc-table.calc-fit th{ white-space:normal; line-height:1.35; font-size:.8rem; vertical-align:middle; }
+  .calc-table.calc-fit .badge{ white-space:normal; display:inline-block; line-height:1.3; }
+  @media (max-width:520px){ .calc-table.calc-fit th, .calc-table.calc-fit td{ padding:4px 3px; overflow-wrap:anywhere; } .calc-table.calc-fit th{ font-size:.72rem; } .calc-table.calc-fit .badge{ font-size:.68rem; } }
+  .calc-table.calc-fit .calc-input{ width:100%; max-width:90px; box-sizing:border-box; }
   .role-select{ padding:5px 8px; }
   .add-user-form{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; background:var(--paper-2); border:1px dashed var(--line); border-radius:6px; padding:14px; margin-bottom:16px; }
   .add-user-form .field{ margin-bottom:0; min-width:160px; }
@@ -1980,7 +1986,7 @@ function completionTableHtml(ind, term, readonly){
     var tv = (cvals.total!=null) ? cvals.total : '';
     var cv = (cvals.completed!=null) ? cvals.completed : '';
     return '<div class="calc-table-wrap">'+
-      '<table class="calc-table"><thead><tr><th>தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கை</th><th>கணிப்பீடு பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கை</th><th>நூற்று வீதம் (%)</th><th>புள்ளி</th></tr></thead>'+
+      '<table class="calc-table calc-fit"><colgroup><col style="width:34%"><col style="width:34%"><col style="width:13%"><col style="width:19%"></colgroup><thead><tr><th>தரங்களிலுள்ள மொத்த<br>வகுப்புகளின் எண்ணிக்கை</th><th>கணிப்பீடு பூரணப்படுத்திய<br>வகுப்புகளின் எண்ணிக்கை</th><th>நூற்று<br>வீதம் (%)</th><th>புள்ளி</th></tr></thead>'+
       '<tbody><tr>'+
         '<td><input type="number" min="0" step="1" class="calc-input" '+(readonly?'readonly ':'data-col="total" ')+' value="'+escapeHtml(tv)+'" placeholder="மொத்தம்"></td>'+
         '<td><input type="number" min="0" step="1" class="calc-input" '+(readonly?'readonly ':'data-col="completed" ')+' value="'+escapeHtml(cv)+'" placeholder="பூரணமானவை"></td>'+
