@@ -45,6 +45,13 @@ td.c{text-align:center}
 .bar{height:8px;background:#e5e7e0;border-radius:4px;min-width:70px}.bar i{display:block;height:100%;background:#63be7b;border-radius:4px}
 .scroll{overflow-x:auto}
 table.teach-tbl{table-layout:fixed}
+/* ஆசிரியர்வாரி முடிவுகள்: ஆசிரியர் பெயர் ஒரே வரியில்; எண் நெடுவரிசைகள் குறுகியவை */
+#resTeach th{font-size:13px;line-height:1.3}
+#resTeach td:nth-child(2){white-space:nowrap}
+#resTeach th:nth-child(n+3):nth-child(-n+7),#resTeach td:nth-child(n+3):nth-child(-n+7){width:1%;white-space:nowrap}
+#resTeach td:last-child{width:1%}
+#resTeach td{vertical-align:middle}
+#resTeach td .row{margin:0}
 table.teach-tbl th{font-size:12.5px;line-height:1.3;white-space:normal;word-break:keep-all}
 table.teach-tbl th:nth-child(1),table.teach-tbl td:nth-child(1){white-space:nowrap}
 table.teach-tbl th:nth-child(2),table.teach-tbl td:nth-child(2){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -400,7 +407,7 @@ const bar=p=>p==null?"":`<div class="bar"><i style="width:${Math.round(p*100)}%"
 function renderResults(){
  const a=agg(records);
  $("#overall").innerHTML=[["மேற்பார்வை செய்யப்பட்ட ஆசிரியர்கள்",new Set(records.map(r=>r.teacherId)).size],["மொத்த மேற்பார்வைகள்",a.n],["மதிப்பிடப்பட்ட சுட்டிகள்",a.ev],["பெறவேண்டிய உச்சப் புள்ளிகள் (30×6×பதிவுகள்)",a.max],["பெறப்பட்ட புள்ளிகள்",a.ob],["மொத்தச் சதவீதம்",pc(a.pct)]].map(([l,v])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
- $("#resTeach").innerHTML=`<tr><th>#</th><th>ஆசிரியர்</th><th>மேற்பார்வைகள்</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள் (180×பதிவுகள்)</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th><th></th><th></th></tr>`+
+ $("#resTeach").innerHTML=`<tr><th>#</th><th>ஆசிரியர்</th><th>மேற்பார்<br>வைகள்</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்<br>(180×பதிவுகள்)</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th><th></th><th></th></tr>`+
   teachers.map((t,i)=>{const x=agg(records.filter(r=>r.teacherId===t.id));return `<tr><td class="c">${i+1}</td><td>${esc(t.name)}</td><td class="c">${x.n}</td><td class="c">${x.ev}</td><td class="c">${x.max}</td><td class="c">${x.ob}</td><td class="c">${pc(x.pct)}</td><td>${bar(x.pct)}</td><td>${teacherActionBtns(t.id)}</td></tr>`}).join("");
  const sums=code=>{let ev=0,ob=0;records.forEach(r=>IND.filter(i=>code==null||i.g===code).forEach(i=>{const v=r.scores[i.code];if(v){ev++;ob+=v}}));return{ev,ob,max:ev*6,pct:ev?ob/(ev*6):null}};
  $("#resCrit").innerHTML=`<tr><th>குறியீடு</th><th>நியதி</th><th>சுட்டிகள்</th><th>உச்சப் புள்ளிகள்</th><th>பெறப்பட்டவை</th><th>சதவீதம்</th><th></th></tr>`+
