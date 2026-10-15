@@ -207,12 +207,6 @@
   .calc-table th{ background:var(--paper); color:var(--ink-soft); font-weight:600; }
   .calc-input{ width:60px; text-align:center; padding:5px; border:1px solid var(--line); border-radius:4px; }
   .calc-avg{ font-weight:700; color:var(--maroon-deep); }
-  /* 1.2.3.1-1.2.3.3: நீண்ட தலைப்புகள் இரு வரிகளாக — அட்டவணை பக்க அகலத்துக்குள் ஒரே பார்வையில் */
-  .calc-table.calc-fit{ width:100%; max-width:720px; table-layout:fixed; white-space:normal; }
-  .calc-table.calc-fit th{ white-space:normal; line-height:1.35; font-size:.8rem; vertical-align:middle; }
-  .calc-table.calc-fit .badge{ white-space:normal; display:inline-block; line-height:1.3; }
-  @media (max-width:520px){ .calc-table.calc-fit th, .calc-table.calc-fit td{ padding:4px 3px; overflow-wrap:anywhere; } .calc-table.calc-fit th{ font-size:.72rem; } .calc-table.calc-fit .badge{ font-size:.68rem; } }
-  .calc-table.calc-fit .calc-input{ width:100%; max-width:90px; box-sizing:border-box; }
   .role-select{ padding:5px 8px; }
   .add-user-form{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; background:var(--paper-2); border:1px dashed var(--line); border-radius:6px; padding:14px; margin-bottom:16px; }
   .add-user-form .field{ margin-bottom:0; min-width:160px; }
@@ -796,27 +790,25 @@ var DEPT1_TAVANAI_CRIT_TITLE = 'தவணைப் பரீட்சைப் �
 var DEPT1_SCHOOLASSESS_CRIT_TITLE = 'பாடசாலை மட்ட கணிப்பீட்டு முன்னேற்றத்தை அளவிடல்';
 var GRADE_COLS_6_11 = ['6','7','8','9','10','11'];
 var GRADE_COLS_12_13 = ['12','13'];
-/* 1.2.2.10 அழகியல் பாடங்கள் — பாடவாரியாகத் தனித்தனிப் பகுப்பாய்வு */
-var AESTHETIC_SUBJECTS = ['சித்திரம்','நடனம்','சங்கீதம்','நாடகம்','இலக்கிய நயம்'];
 var DEPT1_CALC_CONFIG = {
   'தாய்மொழி — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'கணிதம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'விஞ்ஞானம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'ஆங்கிலம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'வரலாறு — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
-  'சமயம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, userRows:true},
+  'சமயம் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'இரண்டாம் மொழி (சிங்களம்/தமிழ்) — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'சுகாதாரமும் உடற்கல்வியும் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'செயன்முறை தொழில்நுட்பத் திறன்கள் — 40+ புள்ளி பெற்றோர் சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
-  'அழகியல் பாடங்கள் (சித்திரம்/நடனம்/சங்கீதம்/நாடகம்/இலக்கிய நயம்) — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, rows:AESTHETIC_SUBJECTS},
-  'முதலாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, userRows:true},
-  'மூன்றாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11, userRows:true},
+  'அழகியல் பாடங்கள் (சித்திரம்/நடனம்/சங்கீதம்/நாடகம்/இலக்கிய நயம்) — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'முதலாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
+  'மூன்றாம் தொகுதிப் பாடங்கள் — சராசரி %': {type:'percentAvg', columns:GRADE_COLS_6_11},
   'தரம் 12-13 கலைத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
   'தரம் 12-13 வர்த்தகத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
   'தரம் 12-13 உயிரியல்/பௌதிக விஞ்ஞானம்/தொழில்நுட்பத்துறை — 40+ புள்ளி பெற்றோர் %': {type:'percentAvg', columns:GRADE_COLS_12_13},
-  'தரம் 6-9 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio', terms:true},
-  'தரம் 10-11 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio', terms:true},
-  'தரம் 12-13 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio', terms:true}
+  'தரம் 6-9 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'},
+  'தரம் 10-11 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'},
+  'தரம் 12-13 வகுப்புகளில் பாடசாலைமட்டக் கணிப்பீடு பூரணப்படுத்தப்பட்ட வகுப்புகளின் %': {type:'completionRatio'}
 };
 /* d1 முதன்மைநிலை 1/2/3 சுட்டிகளில் தேர்ச்சிகளின் எண்ணிக்கை திருத்தம்
    (48 / 50 / 52). ஏற்கனவே சேமிக்கப்பட்ட சகல பாடசாலைகளுக்கும், துறை 1 இற்கு
@@ -856,16 +848,6 @@ function attachDept1Calc(dData){
         if(!ind.calcValues) ind.calcValues = {};
         ind.score = 0; // any earlier manually-picked score no longer applies once this becomes a calculated indicator
       }
-      if(ind.calc && cfg && cfg.userRows && !ind.calc.userRows){
-        ind.calc = Object.assign({}, ind.calc, {userRows:true});
-      }
-      if(ind.calc && cfg && cfg.rows && !ind.calc.rows){
-        ind.calc = Object.assign({}, ind.calc, {rows:cfg.rows});
-      }
-      /* 1.2.3 (பாடசாலைமட்டக் கணிப்பீடு) — தவணை 1, 2, 3 எனப் பிரித்தல்; முன்னர் இட்ட பெறுமதிகள் தவணை 1 இற்குச் செல்லும் */
-      if(ind.calc && ind.calc.type==='completionRatio' && !ind.calc.terms){
-        ind.calc = Object.assign({}, ind.calc, {terms:true});
-      }
       if(ind.calc && ind.calc.type==='percentAvg' && !ind.calc.terms){
         ind.calc = Object.assign({}, ind.calc, {terms:true});
       }
@@ -890,14 +872,6 @@ function calcAverageAndScore(ind, term){
     var pct = (completed/total)*100;
     return {avg:Math.round(pct*10)/10, score:percentToScore(pct)};
   }
-  if(hasSubjectRows(ind)){
-    var st = subjectStats(ind, term);
-    if(st.subjAvgs.length){
-      var sa = st.subjAvgs.reduce(function(a,b){return a+b;},0)/st.subjAvgs.length;
-      return {avg:Math.round(sa*10)/10, score:percentToScore(sa)};
-    }
-    /* பாடவாரிப் பதிவுகள் இல்லையெனில் — முன்னைய ஒருங்கிணைந்த (தரவாரி) % பெறுமதிகளைப் பயன்படுத்து */
-  }
   var cols = ind.calc.columns;
   var vals = [];
   cols.forEach(function(col){
@@ -907,32 +881,6 @@ function calcAverageAndScore(ind, term){
   if(!vals.length) return {avg:null, score:0};
   var avg = vals.reduce(function(a,b){return a+b;},0)/vals.length;
   return {avg:Math.round(avg*10)/10, score:percentToScore(avg)};
-}
-/* பாடவாரிப் புள்ளிவிபரம்: ஒவ்வொரு பாடத்தினதும் தரங்களின் சராசரி, ஒவ்வொரு தரத்தினதும் பாடங்களின் சராசரி.
-   சேமிப்புச் சாவி: "பாடம்|தரம்" (எ.கா. "சித்திரம்|6"). */
-/* பாட வரிசைகள்: நிலையான பட்டியல் (1.2.2.10) அல்லது பயனர் சேர்த்த பாடங்கள் (1.2.2.11, 1.2.2.12 — ind.subjectList) */
-function hasSubjectRows(ind){ return !!(ind.calc && (ind.calc.rows || ind.calc.userRows)); }
-function subjectRowsOf(ind){ return ind.calc.userRows ? (ind.subjectList || []) : (ind.calc.rows || []); }
-function subjectStats(ind, term){
-  var cv = calcValuesFor(ind, term);
-  var cols = ind.calc.columns, rows = subjectRowsOf(ind);
-  function num(v){ if(v===null||v===undefined||v==='') return null; var n=parseFloat(v); return isNaN(n)?null:n; }
-  function avgOf(a){ return a.length ? Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*10)/10 : null; }
-  var bySubj = {}, subjAvgs = [], byGrade = {};
-  rows.forEach(function(sub){
-    var v=[]; cols.forEach(function(col){ var n=num(cv[sub+'|'+col]); if(n!=null) v.push(n); });
-    bySubj[sub] = avgOf(v); if(bySubj[sub]!=null) subjAvgs.push(bySubj[sub]);
-  });
-  cols.forEach(function(col){
-    var v=[]; rows.forEach(function(sub){ var n=num(cv[sub+'|'+col]); if(n!=null) v.push(n); });
-    byGrade[col] = avgOf(v);
-  });
-  return {bySubj:bySubj, byGrade:byGrade, subjAvgs:subjAvgs};
-}
-/* ஒரு பாடத்தின் தவணை 1-3 ஒட்டுமொத்தச் சராசரி */
-function subjectOverall(ind, sub){
-  var a=[]; ['1','2','3'].forEach(function(t){ var v=subjectStats(ind,t).bySubj[sub]; if(v!=null) a.push(v); });
-  return a.length ? Math.round(a.reduce(function(x,y){return x+y;},0)/a.length*10)/10 : null;
 }
 /* தவணை 1-3 இல் % இடப்பட்ட தவணைகளின் சராசரி → சுட்டியின் ஒட்டுமொத்தப் புள்ளி */
 function indicatorOverall(ind){
@@ -1103,27 +1051,130 @@ function ltSupervisionsColRef(schoolId){ return schoolDocRef(schoolId).collectio
 function ltTeachersColRef(schoolId){ return schoolDocRef(schoolId).collection('lt_teachers'); }
 
 function saveTimers(){ return saveTimers._t || (saveTimers._t = {}); }
+/* ---- evidence photos live in their own documents ----
+   Previously every photo was embedded (base64) inside the department's
+   single Firestore document, which Firestore caps at ~1 MiB — so once a
+   department had ~25-40 photos, NEW photos/notes were silently refused and
+   vanished when the app was reopened. Now each photo is stored as its own
+   document: schools/{schoolId}/photos/{entryId} (each gets its own 1 MiB),
+   and the department document keeps only a small "hasPhoto" marker. In
+   memory nothing changes — entry.imageData still holds the picture, so all
+   screens and the PDF report work as before. If the photos collection is
+   not writable yet (Firestore rules not updated), saving falls back to the
+   old inline behaviour so nothing is lost. */
+var PHOTO_CACHE = {};      // schoolId/entryId -> data URL
+var PHOTO_STORED = {};     // schoolId/entryId -> {dept:deptId, len:dataLength} (already in photos collection)
+var PHOTOS_OK = true;      // false once the photos collection proved not writable
+var PENDING_SAVES = 0;
+function photosColRef(){ return schoolDocRef().collection('photos'); }
+function photoKey(id){ return state.schoolId+'/'+id; }
+function forEachEntry(dData, fn){
+  ((dData && dData.criteria) || []).forEach(function(c){
+    (c.indicators||[]).forEach(function(ind){ (ind.entries||[]).forEach(fn); });
+  });
+}
+/* Fill entry.imageData from the cache; fetch whatever is still missing. */
+function hydratePhotos(deptId, onChange){
+  var dData = state.deptData[deptId];
+  var missing = 0;
+  forEachEntry(dData, function(e){
+    if(e.hasPhoto && !e.imageData){
+      var k = photoKey(e.id);
+      if(PHOTO_CACHE[k]){ e.imageData = PHOTO_CACHE[k]; PHOTO_STORED[k] = {dept:deptId, len:PHOTO_CACHE[k].length}; }
+      else missing++;
+    }
+  });
+  if(!missing) return;
+  var sid = state.schoolId;
+  photosColRef().where('deptId','==',deptId).get().then(function(snap){
+    if(state.schoolId!==sid) return;
+    snap.forEach(function(doc){
+      var d = doc.data();
+      if(d && d.data){ PHOTO_CACHE[sid+'/'+doc.id] = d.data; PHOTO_STORED[sid+'/'+doc.id] = {dept:deptId, len:d.data.length}; }
+    });
+    forEachEntry(state.deptData[deptId], function(e){
+      if(e.hasPhoto && !e.imageData && PHOTO_CACHE[photoKey(e.id)]) e.imageData = PHOTO_CACHE[photoKey(e.id)];
+    });
+    if(onChange) onChange();
+  }).catch(function(err){ console.error('photo load error', err); });
+}
+
+function loudSaveFailure(text){
+  setSaveStatus(text);
+  if(!loudSaveFailure.shown){ loudSaveFailure.shown = true; alert(text+'\n\n(இந்த எச்சரிக்கையைத் தொடர்ந்தும் மேலே உள்ள நிலைச் செய்தியில் காணலாம்.)'); setTimeout(function(){ loudSaveFailure.shown=false; }, 15000); }
+}
+
+function doSaveDept(deptId){
+  var dData = state.deptData[deptId];
+  if(!dData) return Promise.resolve();
+  var sid = state.schoolId;
+  var uploads = [], keepIds = {};
+  forEachEntry(dData, function(e){
+    if(e.imageData){
+      keepIds[e.id] = true;
+      var st = PHOTO_STORED[sid+'/'+e.id];
+      if(PHOTOS_OK && (!st || st.len!==e.imageData.length)) uploads.push(e);
+    } else if(e.hasPhoto && e.imageData===undefined){ keepIds[e.id] = true; } // still loading — leave untouched
+  });
+  var inline = {};
+  return Promise.all(uploads.map(function(e){
+    return photosColRef().doc(e.id).set({deptId:deptId, data:e.imageData, name:e.imageName||null}).then(function(){
+      PHOTO_CACHE[sid+'/'+e.id] = e.imageData;
+      PHOTO_STORED[sid+'/'+e.id] = {dept:deptId, len:e.imageData.length};
+    }).catch(function(err){
+      inline[e.id] = true; // keep this one inside the department document (old behaviour)
+      if(err && err.code==='permission-denied') PHOTOS_OK = false;
+      console.warn('photo write failed', e.id, err);
+    });
+  })).then(function(){
+    var slim = JSON.parse(JSON.stringify(dData));
+    forEachEntry(slim, function(e){
+      if(e.imageData){
+        var stored = PHOTO_STORED[sid+'/'+e.id] && !inline[e.id];
+        if(stored){ e.hasPhoto = true; delete e.imageData; }
+        else { delete e.hasPhoto; }
+      } else if(e.imageData===null){ delete e.hasPhoto; }
+    });
+    var size = JSON.stringify(slim).length;
+    if(size > MAX_DEPT_DOC_CHARS){
+      loudSaveFailure('சேமிக்கப்படவில்லை — இந்தத் துறையின் தரவு மிகப் பெரியது (படங்கள் அதிகம்). புதிய தரவு நிரந்தரமாகச் சேமிக்கப்படவில்லை! Firestore Rules இல் "photos" பகுதியைச் சேர்த்து Publish செய்யவும் (அல்லது சில படங்களை நீக்கவும்).');
+      return;
+    }
+    return deptsColRef().doc(deptId).set(slim).then(function(){
+      setSaveStatus('சேமிக்கப்பட்டது ✓');
+      // photos no longer referenced by any entry: remove their documents
+      Object.keys(PHOTO_STORED).forEach(function(k){
+        var st = PHOTO_STORED[k];
+        if(k.indexOf(sid+'/')===0 && st.dept===deptId){
+          var id = k.slice(sid.length+1);
+          if(!keepIds[id]){
+            delete PHOTO_STORED[k]; delete PHOTO_CACHE[k];
+            photosColRef().doc(id).delete().catch(function(){});
+          }
+        }
+      });
+    });
+  });
+}
+
 function scheduleSaveDept(deptId){
-  var size = deptDocSizeChars(deptId);
-  if(size > MAX_DEPT_DOC_CHARS){
-    setSaveStatus('சேமிக்கப்படவில்லை — இந்தத் துறையின் தரவு மிகப் பெரியது (படங்கள் அதிகம்). ஒரு சில படங்களை நீக்கிப் பிறகு முயற்சிக்கவும்.');
-    return;
-  }
   setSaveStatus('சேமிக்கிறது…');
   clearTimeout(saveTimers()[deptId]);
+  PENDING_SAVES++;
   saveTimers()[deptId] = setTimeout(function(){
-    deptsColRef().doc(deptId).set(state.deptData[deptId]).then(function(){
-      setSaveStatus('சேமிக்கப்பட்டது ✓');
-    }).catch(function(err){
+    doSaveDept(deptId).catch(function(err){
       var msg = err && err.message ? err.message : '';
       if(/longer than|exceeds|too large/i.test(msg)){
-        setSaveStatus('சேமிக்கப்படவில்லை — தரவு Firestore இன் அளவு வரம்பைத் தாண்டியுள்ளது. படங்களைக் குறைக்கவும்.');
+        loudSaveFailure('சேமிக்கப்படவில்லை — தரவு Firestore இன் அளவு வரம்பைத் தாண்டியுள்ளது. படங்களைக் குறைக்கவும்.');
       } else {
-        setSaveStatus('சேமிப்பில் சிக்கல்: '+msg);
+        loudSaveFailure('சேமிப்பில் சிக்கல் — புதிய தரவு சேமிக்கப்படவில்லை: '+msg);
       }
-    });
+    }).then(function(){ PENDING_SAVES = Math.max(0, PENDING_SAVES-1); });
   }, 700);
 }
+window.addEventListener('beforeunload', function(e){
+  if(PENDING_SAVES>0){ e.preventDefault(); e.returnValue=''; }
+});
 function setSaveStatus(text){
   var el=document.getElementById('saveStatus');
   if(el) el.textContent=text;
@@ -1136,8 +1187,9 @@ function subscribeDept(deptId, onChange){
     if(snap.metadata.hasPendingWrites) return; // our own optimistic write echoing back
     if(snap.exists){
       state.deptData[deptId] = migrateDeptData(snap.data(), deptId);
+      hydratePhotos(deptId, onChange);
       if(deptId==='d1' && splitDept1MergedCriterion(state.deptData[deptId])){
-        deptsColRef().doc(deptId).set(state.deptData[deptId]).catch(function(){});
+        doSaveDept(deptId).catch(function(){});
       }
     } else {
       state.deptData[deptId] = buildEmptyDeptData(deptId);
@@ -1847,7 +1899,7 @@ function renderSuperAdmin(app){
               if(ind.score && ind.score>0) scoredCount++;
               (ind.entries||[]).forEach(function(e){
                 entryCount++;
-                if(e.imageData) photoCount++;
+                if(e.imageData || e.hasPhoto) photoCount++;
               });
             });
           });
@@ -1952,8 +2004,21 @@ function entryRowHtml(entry){
 }
 
 function calcTableHtml(ind, forReport){
-  if(ind.calc.type==='completionRatio' && !ind.calc.terms){
-    return completionTableHtml(ind, null, !!forReport);
+  if(ind.calc.type==='completionRatio'){
+    var res0 = calcAverageAndScore(ind);
+    var grade0 = res0.avg!=null ? gradeInfo(res0.avg) : null;
+    var tv = (ind.calcValues && ind.calcValues.total!=null) ? ind.calcValues.total : '';
+    var cv = (ind.calcValues && ind.calcValues.completed!=null) ? ind.calcValues.completed : '';
+    return '<div class="calc-table-wrap">'+
+      '<table class="calc-table"><thead><tr><th>தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கை</th><th>கணிப்பீடு பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கை</th><th>நூற்று வீதம் (%)</th><th>புள்ளி</th></tr></thead>'+
+      '<tbody><tr>'+
+        '<td><input type="number" min="0" step="1" class="calc-input" data-col="total" value="'+escapeHtml(tv)+'" placeholder="மொத்தம்"></td>'+
+        '<td><input type="number" min="0" step="1" class="calc-input" data-col="completed" value="'+escapeHtml(cv)+'" placeholder="பூரணமானவை"></td>'+
+        '<td class="calc-avg">'+(res0.avg!=null?res0.avg+'%':'—')+'</td>'+
+        '<td><span class="badge small '+(grade0?grade0.cls:'')+'">'+(res0.avg!=null?res0.score+' — '+grade0.label:'—')+'</span></td>'+
+      '</tr></tbody></table>'+
+      '<p class="hint">அந்தத் தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கையையும், அவற்றுள் பாடசாலைமட்டக் கணிப்பீட்டைப் பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கையையும் மட்டும் இடவும் — % ஆயும் புள்ளியாகவும் தானாகக் கணக்கிடப்படும்.</p>'+
+    '</div>';
   }
   if(ind.calc.terms){
     var terms = ['1','2','3'];
@@ -1973,33 +2038,12 @@ function calcTableHtml(ind, forReport){
       percentTableHtml(ind, cur, false)+
       '<p class="hint">'+terms.map(function(t){ var r=calcAverageAndScore(ind,t); return 'தவணை '+t+': '+(r.avg!=null?r.avg+'%':'—'); }).join(' · ')+
       ' — ஒட்டுமொத்தம்: '+(ov.avg!=null?ov.avg+'% ('+ov.score+' — '+ovGrade.label+')':'—')+'</p>'+
-      (hasSubjectRows(ind) && subjectRowsOf(ind).length ? '<p class="hint"><b>பாடவாரி ஒட்டுமொத்தம் (தவணை 1-3):</b> '+subjectRowsOf(ind).map(function(sub){ var a=subjectOverall(ind,sub); return escapeHtml(sub)+': '+(a!=null?a+'% ('+percentToScore(a)+')':'—'); }).join(' · ')+'</p>' : '')+
     '</div>';
   }
   return '<div class="calc-table-wrap">'+percentTableHtml(ind, null, !!forReport)+'</div>';
 }
 
-function completionTableHtml(ind, term, readonly){
-    var res0 = calcAverageAndScore(ind, term);
-    var cvals = calcValuesFor(ind, term);
-    var grade0 = res0.avg!=null ? gradeInfo(res0.avg) : null;
-    var tv = (cvals.total!=null) ? cvals.total : '';
-    var cv = (cvals.completed!=null) ? cvals.completed : '';
-    return '<div class="calc-table-wrap">'+
-      '<table class="calc-table calc-fit"><colgroup><col style="width:34%"><col style="width:34%"><col style="width:13%"><col style="width:19%"></colgroup><thead><tr><th>தரங்களிலுள்ள மொத்த<br>வகுப்புகளின் எண்ணிக்கை</th><th>கணிப்பீடு பூரணப்படுத்திய<br>வகுப்புகளின் எண்ணிக்கை</th><th>நூற்று<br>வீதம் (%)</th><th>புள்ளி</th></tr></thead>'+
-      '<tbody><tr>'+
-        '<td><input type="number" min="0" step="1" class="calc-input" '+(readonly?'readonly ':'data-col="total" ')+' value="'+escapeHtml(tv)+'" placeholder="மொத்தம்"></td>'+
-        '<td><input type="number" min="0" step="1" class="calc-input" '+(readonly?'readonly ':'data-col="completed" ')+' value="'+escapeHtml(cv)+'" placeholder="பூரணமானவை"></td>'+
-        '<td class="calc-avg">'+(res0.avg!=null?res0.avg+'%':'—')+'</td>'+
-        '<td><span class="badge small '+(grade0?grade0.cls:'')+'">'+(res0.avg!=null?res0.score+' — '+grade0.label:'—')+'</span></td>'+
-      '</tr></tbody></table>'+
-      (readonly ? '' : '<p class="hint">அந்தத் தரங்களிலுள்ள மொத்த வகுப்புகளின் எண்ணிக்கையையும், அவற்றுள் பாடசாலைமட்டக் கணிப்பீட்டைப் பூரணப்படுத்திய வகுப்புகளின் எண்ணிக்கையையும் மட்டும் இடவும் — % ஆயும் புள்ளியாகவும் தானாகக் கணக்கிடப்படும்.'+(term ? ' ஒவ்வொரு தவணையையும் (தவணை 1, 2, 3) தனித்தனியே இடலாம்.' : '')+'</p>')+
-    '</div>';
-}
-
 function percentTableHtml(ind, term, readonly){
-  if(ind.calc.type==='completionRatio') return completionTableHtml(ind, term, readonly);
-  if(hasSubjectRows(ind)) return subjectMatrixTableHtml(ind, term, readonly);
   var cols = ind.calc.columns;
   var cv = calcValuesFor(ind, term);
   var res = calcAverageAndScore(ind, term);
@@ -2021,54 +2065,6 @@ function percentTableHtml(ind, term, readonly){
       ' ஒவ்வொரு தவணையையும் (தவணை 1, 2, 3) தனித்தனியே இடலாம்.</p>');
 }
 
-function subjectMatrixTableHtml(ind, term, readonly){
-  var cols = ind.calc.columns, rows = subjectRowsOf(ind);
-  var userRows = !!ind.calc.userRows;
-  var cv = calcValuesFor(ind, term);
-  var st = subjectStats(ind, term);
-  var res = calcAverageAndScore(ind, term);
-  function badge(avg){ if(avg==null) return '—'; var g=gradeInfo(avg); return '<span class="badge small '+g.cls+'">'+percentToScore(avg)+' — '+g.label+'</span>'; }
-  var head = '<tr><th>பாடம்</th>'+cols.map(function(col){ return '<th>தரம் '+escapeHtml(col)+'</th>'; }).join('')+'<th>சராசரி %</th><th>புள்ளி</th></tr>';
-  var body = rows.map(function(sub){
-    var a = st.bySubj[sub];
-    return '<tr><th style="text-align:left">'+escapeHtml(sub)+
-      ((userRows && !readonly) ? ' <button type="button" class="btn-tiny" data-role="delsubj" data-subj="'+escapeHtml(sub)+'" title="இந்தப் பாடத்தை நீக்கு">✕</button>' : '')+
-      '</th>'+cols.map(function(col){
-      var key = sub+'|'+col, v = cv[key]!=null ? cv[key] : '';
-      return '<td><input type="number" min="0" max="100" step="0.1" class="calc-input" '+(readonly?'readonly ':'data-col="'+escapeHtml(key)+'" ')+'value="'+escapeHtml(v)+'" placeholder="%"></td>';
-    }).join('')+'<td class="calc-avg">'+(a!=null?a+'%':'—')+'</td><td>'+badge(a)+'</td></tr>';
-  }).join('');
-  var gradeRow = '<tr><th style="text-align:left">தரவாரிச் சராசரி</th>'+cols.map(function(col){
-    var g = st.byGrade[col]; return '<td class="calc-avg">'+(g!=null?g+'%':'—')+'</td>';
-  }).join('')+'<td class="calc-avg">'+(res.avg!=null?res.avg+'%':'—')+'</td><td>'+badge(res.avg)+'</td></tr>';
-  /* முன்னைய ஒருங்கிணைந்த பதிவுகள் (பாடவாரிப் பிரிப்புக்கு முன் இடப்பட்டவை) — காண்பிக்க மட்டும் */
-  var legacy = cols.filter(function(col){ return cv[col]!=null && cv[col]!==''; });
-  var legacyHtml = legacy.length ? '<p class="hint">முன்னைய ஒருங்கிணைந்த பதிவு (பாடவாரிப் பிரிப்புக்கு முன்): '+
-    legacy.map(function(col){ return 'தரம் '+escapeHtml(col)+': '+escapeHtml(cv[col])+'%'; }).join(' · ')+
-    (st.subjAvgs.length ? ' — பாடவாரிப் பதிவுகள் இடப்பட்டுள்ளதால் இது கணக்கில் எடுக்கப்படுவதில்லை.' : ' — பாடவாரிப் பதிவுகள் இடப்படும் வரை இதுவே கணக்கில் எடுக்கப்படும்.')+'</p>' : '';
-  var addBar = (userRows && !readonly) ? '<div class="ind-controls" style="margin:6px 0">'+
-      '<input type="text" class="subj-new" data-role="newsubj" placeholder="'+((ind.title||'').indexOf('சமயம்')===0 ? 'சமயப் பாடத்தின் பெயர் (எ.கா. சைவநெறி, கத்தோலிக்கம், கிறிஸ்தவம், இஸ்லாம், பௌத்தம்)' : 'பாடத்தின் பெயர் (எ.கா. வணிகக் கல்வியும் கணக்கீடும்)')+'" style="padding:6px;border:1px solid var(--line);border-radius:4px;min-width:240px"> '+
-      '<button type="button" class="btn-outline small" data-role="addsubj">+ பாடம் சேர்</button></div>' : '';
-  if(userRows && !rows.length){
-    return addBar+legacyHtml+(readonly ? '<p class="hint">பாடங்கள் எதுவும் சேர்க்கப்படவில்லை.</p>' :
-      '<p class="hint">மேலே பாடத்தின் பெயரை இட்டு "+ பாடம் சேர்" ஐ அழுத்தி, இத்தொகுதியில் பாடசாலையில் கற்பிக்கப்படும் பாடங்களை ஒவ்வொன்றாகச் சேர்க்கவும். சேர்த்த பாடங்கள் தவணை 1, 2, 3 மூன்றிற்கும் பொருந்தும்.</p>');
-  }
-  return addBar+'<table class="calc-table"><thead>'+head+'</thead><tbody>'+body+gradeRow+'</tbody></table>'+legacyHtml+
-    (readonly ? '' : '<p class="hint">'+(userRows ? 'சேர்க்கப்பட்ட பாடங்கள் தவணை 1, 2, 3 மூன்றிற்கும் பொருந்தும். ' : '')+'ஒவ்வொரு '+(userRows?'':'அழகியல் ')+'பாடத்திற்கும், ஒவ்வொரு தரத்திலும் 40+ புள்ளி பெற்ற மாணவர்களின் நூற்றுவீதத்தை (%) இடவும். பாடவாரிச் சராசரியும் புள்ளியும், தரவாரிச் சராசரியும் தானாகக் கணக்கிடப்படும்; சுட்டியின் புள்ளி = பாடங்களின் சராசரிகளின் சராசரி. அப்பாடம் கற்பிக்கப்படாத தரங்களை வெறுமையாக விடவும். ஒவ்வொரு தவணையையும் தனித்தனியே இடலாம்.</p>');
-}
-
-/* கணக்கிடப்படும் சுட்டிகளுக்கும் (1.1.1.x, 1.2.2.x, 1.2.3.x) மதிப்பீட்டுப் புள்ளித் தெரிவு.
-   இயல்பாக கணக்கிடப்பட்ட புள்ளி தானாக நிரப்பப்படும்; பயனர் வேறு புள்ளியைத் தெரிவுசெய்தால்
-   அது கைமுறைப் புள்ளியாகப் பேணப்படும் (ind.scoreManual). */
-function calcScoreControlHtml(ind){
-  var auto = indicatorOverall(ind);
-  var autoTxt = auto.avg!=null ? (auto.score+' ('+auto.avg+'%)') : '—';
-  var note = ind.scoreManual
-    ? '<span class="hint" style="margin:0">கைமுறையாகத் தெரிவுசெய்யப்பட்டது · கணக்கிடப்பட்ட புள்ளி: '+autoTxt+' <button type="button" class="btn-tiny" data-role="scoreauto">கணக்கிடப்பட்ட புள்ளியைப் பயன்படுத்து</button></span>'
-    : '<span class="hint" style="margin:0">கணக்கிடப்பட்ட புள்ளி: '+autoTxt+' (தேவையெனில் மாற்றலாம்)</span>';
-  return '<div class="ind-controls" style="margin:4px 0 8px"><label style="font-weight:600">மதிப்பீட்டுப் புள்ளி:</label> <select class="ind-score" data-role="score">'+scoreSelectHtml(ind.score)+'</select> '+note+'</div>';
-}
-
 function indicatorRowHtml(ind, idx, refNum){
   var entries = ind.entries || [];
   return '<div class="ind-row" data-ind="'+ind.id+'">'+
@@ -2076,7 +2072,7 @@ function indicatorRowHtml(ind, idx, refNum){
     '<div class="ind-main">'+
       '<div class="ind-title">'+escapeHtml(ind.title)+'</div>'+
       (ind.calc ?
-        calcTableHtml(ind)+calcScoreControlHtml(ind) :
+        calcTableHtml(ind) :
         '<div class="ind-controls"><select class="ind-score" data-role="score">'+scoreSelectHtml(ind.score)+'</select></div>'
       )+
       '<div class="entries-list">'+entries.map(entryRowHtml).join('')+'</div>'+
@@ -2210,49 +2206,10 @@ function renderDeptView(app, deptId, opts){
       if(scoreSel){
         scoreSel.onchange=function(e){
           ind.score=parseInt(e.target.value,10)||0;
-          if(ind.calc){ ind.scoreManual = (ind.score !== indicatorOverall(ind).score); }
           scheduleSaveDept(deptId);
           renderDeptView(app, deptId, opts);
         };
       }
-      var scoreAutoBtn = rowEl.querySelector('[data-role="scoreauto"]');
-      if(scoreAutoBtn){
-        scoreAutoBtn.onclick=function(){
-          ind.scoreManual = false;
-          ind.score = indicatorOverall(ind).score;
-          scheduleSaveDept(deptId);
-          renderDeptView(app, deptId, opts);
-        };
-      }
-      var addSubjBtn = rowEl.querySelector('[data-role="addsubj"]');
-      if(addSubjBtn){
-        var newSubjInp = rowEl.querySelector('[data-role="newsubj"]');
-        var doAddSubj = function(){
-          var name = (newSubjInp.value||'').trim().replace(/\|/g,'/');
-          if(!name) return;
-          if(!ind.subjectList) ind.subjectList = [];
-          if(ind.subjectList.indexOf(name)>=0){ alert('இந்தப் பாடம் ஏற்கனவே சேர்க்கப்பட்டுள்ளது.'); return; }
-          ind.subjectList.push(name);
-          scheduleSaveDept(deptId);
-          renderDeptView(app, deptId, opts);
-        };
-        addSubjBtn.onclick = doAddSubj;
-        newSubjInp.onkeydown = function(e){ if(e.key==='Enter'){ e.preventDefault(); doAddSubj(); } };
-      }
-      rowEl.querySelectorAll('[data-role="delsubj"]').forEach(function(db){
-        db.onclick=function(){
-          var name = db.getAttribute('data-subj');
-          if(!confirm('"'+name+'" பாடத்தையும் அதன் சகல தவணைப் பதிவுகளையும் நீக்கவா?')) return;
-          ind.subjectList = (ind.subjectList||[]).filter(function(x){ return x!==name; });
-          if(ind.calcTerms) Object.keys(ind.calcTerms).forEach(function(t){
-            var st = ind.calcTerms[t] || {};
-            Object.keys(st).forEach(function(k){ if(k.indexOf(name+'|')===0) delete st[k]; });
-          });
-          if(!ind.scoreManual) ind.score = indicatorOverall(ind).score;
-          scheduleSaveDept(deptId);
-          renderDeptView(app, deptId, opts);
-        };
-      });
       rowEl.querySelectorAll('[data-role="termtab"]').forEach(function(tb){
         tb.onclick=function(){
           DEPT_TERM_SEL[ind.id] = tb.getAttribute('data-term');
@@ -2275,7 +2232,7 @@ function renderDeptView(app, deptId, opts){
           var v = e.target.value;
           if(v===''){ delete store[col]; } else { store[col] = v; }
           var res = indicatorOverall(ind);
-          if(!ind.scoreManual) ind.score = res.score;
+          ind.score = res.score;
           scheduleSaveDept(deptId);
           renderDeptView(app, deptId, opts);
         };
@@ -2453,7 +2410,7 @@ function reportIndicatorSummaryHtml(ind, refNum){
     : (ind.calc ? '' : '<p class="hint">இதுவரை எந்தப் பதிவும் இடப்படவில்லை.</p>');
   return '<div class="report-ind">'+
     '<div class="report-ind-title">'+numHtml+escapeHtml(ind.title)+'</div>'+
-    '<div class="badge small" style="margin-bottom:8px">'+(ind.calc?'மதிப்பீட்டுப் புள்ளி: ':'')+escapeHtml(scoreTxt)+'</div>'+
+    (ind.calc ? '' : '<div class="badge small" style="margin-bottom:8px">'+escapeHtml(scoreTxt)+'</div>')+
     calcHtml+
     entriesHtml+
   '</div>';
