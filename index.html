@@ -197,6 +197,10 @@
   .setup-table th, .setup-table td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); font-size:.88rem; }
   .setup-table th{ color:var(--ink-soft); font-weight:600; }
 
+  .save-btn{ padding:8px 16px; font-size:.88rem; }
+  .save-btn.dirty{ background:#B8860B; border-color:#B8860B; animation:savepulse 1.4s ease-in-out infinite; }
+  @keyframes savepulse{ 50%{ box-shadow:0 0 0 4px rgba(184,134,11,.35); } }
+  @media print{ .save-btn{ display:none !important; } }
   .term-tabs{ display:flex; gap:6px; margin:4px 0 8px; flex-wrap:wrap; }
   .term-tab{ font-family:inherit; font-size:.85rem; padding:6px 14px; border:1px solid var(--gold); background:var(--paper-2); color:var(--maroon-deep); border-radius:16px; cursor:pointer; }
   .term-tab.active{ background:var(--maroon); color:#fff; border-color:var(--maroon); }
@@ -1117,7 +1121,6 @@ function saveTimers(){ return saveTimers._t || (saveTimers._t = {}); }
 var PHOTO_CACHE = {};      // schoolId/entryId -> data URL
 var PHOTO_STORED = {};     // schoolId/entryId -> {dept:deptId, len:dataLength} (already in photos collection)
 var PHOTOS_OK = true;      // false once the photos collection proved not writable
-var PENDING_SAVES = 0;
 function photosColRef(){ return schoolDocRef().collection('photos'); }
 function photoKey(id){ return state.schoolId+'/'+id; }
 function forEachEntry(dData, fn){
@@ -1190,7 +1193,7 @@ function doSaveDept(deptId){
     var size = JSON.stringify(slim).length;
     if(size > MAX_DEPT_DOC_CHARS){
       loudSaveFailure('சேமிக்கப்படவில்லை — இந்தத் துறையின் தரவு மிகப் பெரியது (படங்கள் அதிகம்). புதிய தரவு நிரந்தரமாகச் சேமிக்கப்படவில்லை! Firestore Rules இல் "photos" பகுதியைச் சேர்த்து Publish செய்யவும் (அல்லது சில படங்களை நீக்கவும்).');
-      return;
+      return false;
     }
     return deptsColRef().doc(deptId).set(slim).then(function(){
       setSaveStatus('சேமிக்கப்பட்டது ✓');
@@ -1205,27 +1208,66 @@ function doSaveDept(deptId){
           }
         }
       });
+      return true;
     });
   });
 }
 
-function scheduleSaveDept(deptId){
-  setSaveStatus('சேமிக்கிறது…');
-  clearTimeout(saveTimers()[deptId]);
-  PENDING_SAVES++;
-  saveTimers()[deptId] = setTimeout(function(){
-    doSaveDept(deptId).catch(function(err){
-      var msg = err && err.message ? err.message : '';
-      if(/longer than|exceeds|too large/i.test(msg)){
-        loudSaveFailure('சேமிக்கப்படவில்லை — தரவு Firestore இன் அளவு வரம்பைத் தாண்டியுள்ளது. படங்களைக் குறைக்கவும்.');
-      } else {
-        loudSaveFailure('சேமிப்பில் சிக்கல் — புதிய தரவு சேமிக்கப்படவில்லை: '+msg);
-      }
-    }).then(function(){ PENDING_SAVES = Math.max(0, PENDING_SAVES-1); });
-  }, 700);
+/* Unsaved-changes tracking (per department) + the "சேமி / Update" button.
+   DIRTY[d] is true from the moment something changes until a save of that
+   department fully succeeds — the browser's "Leave app?" warning only
+   appears while something is genuinely unsaved. */
+var DIRTY = {}, DIRTY_VER = {}, SAVING = {};
+function anyDirty(){ return Object.keys(DIRTY).some(function(k){ return DIRTY[k]; }); }
+function updateSaveBtn(){
+  var btn = document.getElementById('btnSaveDept');
+  if(!btn) return;
+  var d = state.currentDept;
+  var dirty = !!(d && DIRTY[d]);
+  btn.classList.toggle('dirty', dirty);
+  btn.disabled = !!(d && SAVING[d]);
+  btn.textContent = SAVING[d] ? '⏳ சேமிக்கிறது…' : (dirty ? '💾 சேமி / Update (சேமிக்கப்படாதவை உள்ளன)' : '💾 சேமி / Update');
 }
+function saveDeptNow(deptId){
+  clearTimeout(saveTimers()[deptId]);
+  if(SAVING[deptId]) return Promise.resolve(false);
+  var ver = DIRTY_VER[deptId] || 0;
+  SAVING[deptId] = true; setSaveStatus('சேமிக்கிறது…'); updateSaveBtn();
+  return doSaveDept(deptId).then(function(ok){
+    if(ok===false) return false;
+    if((DIRTY_VER[deptId]||0)===ver) DIRTY[deptId] = false;   // nothing changed while saving
+    return true;
+  }).catch(function(err){
+    var msg = err && err.message ? err.message : '';
+    loudSaveFailure(/longer than|exceeds|too large/i.test(msg)
+      ? 'சேமிக்கப்படவில்லை — தரவு Firestore இன் அளவு வரம்பைத் தாண்டியுள்ளது. படங்களைக் குறைக்கவும்.'
+      : 'சேமிப்பில் சிக்கல் — புதிய தரவு சேமிக்கப்படவில்லை: '+msg);
+    return false;
+  }).then(function(ok){
+    SAVING[deptId] = false; updateSaveBtn();
+    if(ok===true && DIRTY[deptId]) scheduleSaveDept(deptId);  // edits arrived during the save
+    return ok;
+  });
+}
+function scheduleSaveDept(deptId){
+  DIRTY[deptId] = true; DIRTY_VER[deptId] = (DIRTY_VER[deptId]||0)+1;
+  setSaveStatus('சேமிக்கிறது…'); updateSaveBtn();
+  clearTimeout(saveTimers()[deptId]);
+  saveTimers()[deptId] = setTimeout(function(){ saveDeptNow(deptId); }, 700);
+}
+function wireSaveButton(deptId){
+  var btn = document.getElementById('btnSaveDept');
+  if(!btn) return;
+  updateSaveBtn();
+  btn.onclick=function(){
+    saveDeptNow(deptId).then(function(ok){
+      if(ok===true) setSaveStatus('சேமிக்கப்பட்டது ✓ — '+new Date().toLocaleTimeString('ta-LK'));
+    });
+  };
+}
+function saveBtnHtml(){ return '<button type="button" class="btn-primary save-btn" id="btnSaveDept">💾 சேமி / Update</button> '; }
 window.addEventListener('beforeunload', function(e){
-  if(PENDING_SAVES>0){ e.preventDefault(); e.returnValue=''; }
+  if(anyDirty()){ e.preventDefault(); e.returnValue=''; }
 });
 function setSaveStatus(text){
   var el=document.getElementById('saveStatus');
@@ -2223,7 +2265,7 @@ function renderDeptView(app, deptId, opts){
     subscribeLtSupervisions(function(){ if((state.view==='dept'||state.view==='adminDept')&&!isTypingInApp()) renderApp(); });
     var lt = computeLtStats();
     app.innerHTML =
-      topbarHtml('<button class="btn-ghost" id="btnBack">'+(opts.admin?'← முகாமைக்குத் திரும்பு':'← வெளியேறு')+'</button>') +
+      topbarHtml(saveBtnHtml()+'<button class="btn-ghost" id="btnBack">'+(opts.admin?'← முகாமைக்குத் திரும்பு':'← வெளியேறு')+'</button>') +
       '<div class="dept-header">'+
         '<h1>'+escapeHtml(dept.name)+'</h1>'+
         '<p class="dept-sub">'+dept.en+'</p>'+
@@ -2249,7 +2291,8 @@ function renderDeptView(app, deptId, opts){
       '</div>'+
       '<footer class="app-footer">பாடசாலைக் கல்விப் பண்புத்தரத்தை உறுதி செய்வதற்கான மதிப்பீட்டு வடிவமைப்பை அடிப்படையாகக் கொண்டது.</footer>';
 
-    document.getElementById('btnBack').onclick=function(){
+    wireSaveButton(deptId);
+  document.getElementById('btnBack').onclick=function(){
       state.view = opts.admin ? 'admin' : 'login';
       renderApp();
     };
@@ -2258,7 +2301,7 @@ function renderDeptView(app, deptId, opts){
   }
 
   app.innerHTML =
-    topbarHtml('<button class="btn-ghost" id="btnBack">'+(opts.admin?'← முகாமைக்குத் திரும்பு':'← வெளியேறு')+'</button>') +
+    topbarHtml(saveBtnHtml()+'<button class="btn-ghost" id="btnBack">'+(opts.admin?'← முகாமைக்குத் திரும்பு':'← வெளியேறு')+'</button>') +
     '<div class="dept-header">'+
       '<h1>'+escapeHtml(dept.name)+'</h1>'+
       '<p class="dept-sub">'+dept.en+'</p>'+
@@ -2276,6 +2319,7 @@ function renderDeptView(app, deptId, opts){
     (opts.admin ? '<button type="button" class="btn-outline" id="btnDeptReport" style="margin-top:12px">சான்று அறிக்கை (PDF) — இந்தத் துறை மட்டும்</button>' : '')+
     '<footer class="app-footer">பாடசாலைக் கல்விப் பண்புத்தரத்தை உறுதி செய்வதற்கான மதிப்பீட்டு வடிவமைப்பை அடிப்படையாகக் கொண்டது.</footer>';
 
+  wireSaveButton(deptId);
   document.getElementById('btnBack').onclick=function(){
     if(!opts.admin) unsubscribeDept(deptId);
     state.view = opts.admin ? 'admin' : 'login';
