@@ -2786,12 +2786,51 @@ function renderSchoolSetup(app){
         '</select></div>'+
         '<button type="button" class="btn-outline" id="btnRecoverDept">இந்தத் துறையின் பழைய தரவைக் கொண்டுவா</button>'+
         '<button type="button" class="btn-primary" id="btnMergeDept">பழைய தரவை இணை (இப்போதுள்ளதை நீக்காமல்)</button>'+
+        '<button type="button" class="btn-outline" id="btnCheckDept">🔍 தரவு எங்குள்ளது எனச் சோதி</button>'+
       '</div>'+
       '<div class="error-msg" id="recoverMsg"></div>'+
+      '<div id="checkResult" style="margin-top:10px;overflow-x:auto"></div>'+
     '</div>'+
     '<footer class="app-footer">புதிதாக உருவாக்கிய மின்னஞ்சல் மற்றும் தற்காலிகக் கடவுச்சொல்லை அந்தந்தத் துறைப் பொறுப்பாளரிடம் நேரடியாக வழங்கவும்.</footer>';
 
   document.getElementById('btnBackAdmin').onclick=function(){ state.view='admin'; renderApp(); };
+
+  document.getElementById('btnCheckDept').onclick=function(){
+    var deptId = document.getElementById('recoverDept').value;
+    var box = document.getElementById('checkResult');
+    box.innerHTML = 'சோதிக்கிறது…';
+    function sum(d){
+      var r={entries:0, notes:0, photos:0, scored:0, values:0};
+      ((d&&d.criteria)||[]).forEach(function(c){ (c.indicators||[]).forEach(function(i){
+        if(i.score>0) r.scored++;
+        (i.entries||[]).forEach(function(e){ r.entries++; if(e.note&&String(e.note).trim()) r.notes++; if(e.imageData||e.hasPhoto) r.photos++; });
+        var vs=[i.calcValues||{}]; if(i.calcTerms) Object.keys(i.calcTerms).forEach(function(t){ vs.push(i.calcTerms[t]||{}); });
+        vs.forEach(function(v){ Object.keys(v).forEach(function(k){ if(v[k]!==''&&v[k]!=null) r.values++; }); });
+      }); });
+      return r;
+    }
+    var rows = [];
+    function row(label, info){ rows.push('<tr><td>'+escapeHtml(label)+'</td>'+(typeof info==='object'
+      ? '<td>'+info.values+'</td><td>'+info.scored+'</td><td>'+info.entries+'</td><td>'+info.notes+'</td><td>'+info.photos+'</td>'
+      : '<td colspan="5">'+escapeHtml(info)+'</td>')+'</tr>'); }
+    db.collection('departments').doc(deptId).get().then(function(a){
+      row('பழைய இடம் (பிரிப்புக்கு முன்)', a.exists ? sum(a.data()) : 'இல்லை');
+    }).catch(function(e){ row('பழைய இடம்', 'வாசிக்க அனுமதி இல்லை ('+e.code+')'); }).then(function(){
+      return db.collection('schools').get().then(function(s){ var ids=[]; s.forEach(function(x){ ids.push({id:x.id, name:(x.data()||{}).name||x.id}); }); return ids; })
+        .catch(function(){ return [{id:state.schoolId, name:state.schoolId}]; });
+    }).then(function(ids){
+      if(!ids.some(function(x){ return x.id===state.schoolId; })) ids.unshift({id:state.schoolId, name:state.schoolId});
+      return ids.reduce(function(p, sc){
+        return p.then(function(){
+          return db.collection('schools').doc(sc.id).collection('departments').doc(deptId).get().then(function(d){
+            row(sc.name+(sc.id===state.schoolId?' ← இப்போது திறந்தது':''), d.exists ? sum(d.data()) : 'இல்லை');
+          }).catch(function(e){ row(sc.name, 'வாசிக்க அனுமதி இல்லை ('+e.code+')'); });
+        });
+      }, Promise.resolve());
+    }).then(function(){
+      box.innerHTML = '<table class="setup-table"><thead><tr><th>இடம்</th><th>% பெறுமதிகள்</th><th>புள்ளி இட்ட சுட்டிகள்</th><th>பதிவுகள்</th><th>குறிப்புகள்</th><th>படங்கள்</th></tr></thead><tbody>'+rows.join('')+'</tbody></table>';
+    });
+  };
 
   document.getElementById('btnMergeDept').onclick=function(){
     var deptId = document.getElementById('recoverDept').value;
