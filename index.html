@@ -1006,6 +1006,47 @@ function splitDept1MergedCriterion(dData){
   return false;
 }
 
+/* பழைய இடத்திலுள்ள துறைத் தரவை, இப்போதுள்ள தரவை நீக்காமல் / மாற்றாமல் இணைத்தல்.
+   சுட்டிகள் id மூலம், இல்லையெனில் (நியதி + சுட்டித்) தலைப்பு மூலம் பொருத்தப்படும். */
+function mergeOldDeptInto(cur, oldD){
+  var res = {entries:0, values:0, scores:0, subjects:0, unmatched:0, total:0};
+  var byId = {}, byTitle = {};
+  (cur.criteria||[]).forEach(function(c){ (c.indicators||[]).forEach(function(ind){
+    byId[ind.id] = ind; byTitle[c.title+'||'+ind.title] = ind; if(!byTitle['*||'+ind.title]) byTitle['*||'+ind.title] = ind;
+  }); });
+  function isEmpty(v){ return v===undefined || v===null || v===''; }
+  function mergeVals(dst, src){
+    Object.keys(src||{}).forEach(function(k){ if(isEmpty(dst[k]) && !isEmpty(src[k])){ dst[k] = src[k]; res.values++; } });
+  }
+  (oldD.criteria||[]).forEach(function(c){ (c.indicators||[]).forEach(function(o){
+    var t = byId[o.id] || byTitle[c.title+'||'+o.title] || byTitle['*||'+o.title];
+    if(!t){
+      var has = (o.entries&&o.entries.length) || o.score>0 || o.calcValues || o.calcTerms;
+      if(has) res.unmatched++;
+      return;
+    }
+    if(!t.entries) t.entries = [];
+    var ids = {}; t.entries.forEach(function(e){ ids[e.id]=true; });
+    (o.entries||[]).forEach(function(e){ if(!ids[e.id]){ t.entries.push(e); ids[e.id]=true; res.entries++; } });
+    if(!(t.score>0) && o.score>0){ t.score = o.score; res.scores++; }
+    if(o.subjectList && o.subjectList.length){
+      if(!t.subjectList) t.subjectList = [];
+      o.subjectList.forEach(function(sb){ if(t.subjectList.indexOf(sb)<0){ t.subjectList.push(sb); res.subjects++; } });
+    }
+    if(t.calc && t.calc.terms){
+      if(!t.calcTerms) t.calcTerms = {'1':{},'2':{},'3':{}};
+      if(o.calcTerms) ['1','2','3'].forEach(function(k){ if(!t.calcTerms[k]) t.calcTerms[k]={}; mergeVals(t.calcTerms[k], o.calcTerms[k]); });
+      if(o.calcValues){ if(!t.calcTerms['1']) t.calcTerms['1']={}; mergeVals(t.calcTerms['1'], o.calcValues); }
+    } else if(o.calcValues || o.calcTerms){
+      if(!t.calcValues) t.calcValues = {};
+      mergeVals(t.calcValues, o.calcValues || (o.calcTerms && o.calcTerms['1']));
+    }
+  }); });
+  if(oldD.note && !(cur.note||'').trim()){ cur.note = oldD.note; res.values++; }
+  res.total = res.entries+res.values+res.scores+res.subjects;
+  return res;
+}
+
 function isTypingInApp(){
   var a = document.activeElement;
   return a && (a.tagName==='INPUT' || a.tagName==='TEXTAREA') && document.getElementById('app').contains(a);
@@ -2738,17 +2779,47 @@ function renderSchoolSetup(app){
     '<div class="criterion" style="margin-top:24px">'+
       '<div class="criterion-head"><span class="crit-num">மீட்பு கருவி</span></div>'+
       '<p class="hint" style="margin:0 0 10px">பள்ளிகள் பிரிக்கப்படுவதற்கு முன் ஒரு துறையில் பதிவு செய்யப்பட்ட தகவல் இந்தப் பள்ளியில் தற்போது தெரியவில்லை எனில், அந்தத் துறையைத் தெரிவு செய்து கீழுள்ள பொத்தானை அழுத்தவும் — பழைய இடத்தில் இன்னும் இருக்கும் அந்தத் துறையின் தரவை இந்தப் பள்ளிக்குள் மீண்டும் கொண்டு வரும். <strong>இது இந்தத் துறையில் இப்போது இந்தப் பள்ளியில் உள்ளதை நீக்கி, பழைய தரவால் மாற்றும்</strong> — எனவே தேவையான துறைக்கு மட்டும் பயன்படுத்தவும்.</p>'+
+      '<p class="hint" style="margin:0 0 10px"><strong>பாதுகாப்பான வழி — "பழைய தரவை இணை":</strong> இப்போதுள்ள தரவு எதையும் நீக்காது, மாற்றாது. பழைய இடத்தில் இருந்து, இப்போது இல்லாத பதிவுகள் (குறிப்பு/படம்), வெறுமையாக உள்ள % பெறுமதிகள், இடப்படாத புள்ளிகள், பாடங்கள் ஆகியவற்றை மட்டும் சேர்க்கும்.</p>'+
       '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">'+
         '<div class="field" style="min-width:260px"><label>துறை</label><select id="recoverDept" class="role-select">'+
           DEPARTMENTS.map(function(d){ return '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>'; }).join('')+
         '</select></div>'+
         '<button type="button" class="btn-outline" id="btnRecoverDept">இந்தத் துறையின் பழைய தரவைக் கொண்டுவா</button>'+
+        '<button type="button" class="btn-primary" id="btnMergeDept">பழைய தரவை இணை (இப்போதுள்ளதை நீக்காமல்)</button>'+
       '</div>'+
       '<div class="error-msg" id="recoverMsg"></div>'+
     '</div>'+
     '<footer class="app-footer">புதிதாக உருவாக்கிய மின்னஞ்சல் மற்றும் தற்காலிகக் கடவுச்சொல்லை அந்தந்தத் துறைப் பொறுப்பாளரிடம் நேரடியாக வழங்கவும்.</footer>';
 
   document.getElementById('btnBackAdmin').onclick=function(){ state.view='admin'; renderApp(); };
+
+  document.getElementById('btnMergeDept').onclick=function(){
+    var deptId = document.getElementById('recoverDept').value;
+    var dept = deptById(deptId);
+    var msgEl = document.getElementById('recoverMsg');
+    msgEl.style.color=''; msgEl.textContent='இணைக்கிறது…';
+    Promise.all([db.collection('departments').doc(deptId).get(), deptsColRef().doc(deptId).get()]).then(function(r){
+      if(!r[0].exists) throw new Error('இந்தத் துறைக்கான பழைய தரவு எதுவும் பழைய இடத்தில் கிடைக்கவில்லை.');
+      var oldD = migrateDeptData(JSON.parse(JSON.stringify(r[0].data())), deptId);
+      if(deptId==='d1') splitDept1MergedCriterion(oldD);
+      var cur = r[1].exists ? migrateDeptData(r[1].data(), deptId) : buildEmptyDeptData(deptId);
+      if(deptId==='d1') splitDept1MergedCriterion(cur);
+      var res = mergeOldDeptInto(cur, oldD);
+      if(!res.total) throw new Error('"'+dept.name+'" — பழைய தரவில் இப்போது இல்லாத தகவல் எதுவும் இல்லை. எதுவும் மாற்றப்படவில்லை.');
+      unsubscribeDept(deptId);
+      state.deptData[deptId] = cur;
+      hydratePhotos(deptId);
+      return doSaveDept(deptId).then(function(ok){
+        if(ok===false) throw new Error('இணைத்த தரவைச் சேமிக்க முடியவில்லை (மேலே உள்ள எச்சரிக்கையைப் பார்க்கவும்).');
+        unsubscribeDept(deptId); delete state.deptData[deptId];
+        msgEl.style.color='var(--sage)';
+        msgEl.textContent='"'+dept.name+'" — இணைக்கப்பட்டது ✓  பதிவுகள்: '+res.entries+', % பெறுமதிகள்: '+res.values+', புள்ளிகள்: '+res.scores+', பாடங்கள்: '+res.subjects+(res.unmatched?' (பொருந்தாத பழைய சுட்டிகள்: '+res.unmatched+')':'');
+      });
+    }).catch(function(err){
+      msgEl.style.color='';
+      msgEl.textContent = err.message;
+    });
+  };
 
   document.getElementById('btnRecoverDept').onclick=function(){
     var deptId = document.getElementById('recoverDept').value;
