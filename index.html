@@ -1851,6 +1851,12 @@ function renderSuperAdmin(app){
     '<div class="topbar-actions"><button class="btn-ghost" id="btnLogoutSA">← வெளியேறு</button></div></div>'+
     '<div class="dept-header"><h1>பள்ளிகள்</h1>'+
     '<p class="dept-sub">ஒவ்வொரு பள்ளியும் அதற்கே உரிய தனித்தனி தரவுத்தளத்தை (துறைகள், சான்றுகள், பயனர்கள்) கொண்டிருக்கும்.</p></div>'+
+    '<div class="pins-panel">'+
+      '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">💾 முழுத் தரவின் Backup (பதிவிறக்கம்)</div>'+
+      '<p class="hint" style="margin:0 0 10px">எல்லாப் பள்ளிகளின் துறைத் தரவு, படங்கள், பயனர் நியமிப்புகள், பழைய இடங்களில் உள்ள தரவு அனைத்தையும் ஒரு கோப்பாக (JSON) உங்கள் கணினிக்குப் பதிவிறக்கும். இது படிக்க மட்டுமே — எதையும் மாற்றாது அல்லது நீக்காது. வாரம் ஒருமுறை எடுத்து வைக்கவும்.</p>'+
+      '<button type="button" class="btn-outline" id="btnBackupAll">Backup பதிவிறக்கு</button>'+
+      '<div class="error-msg" id="backupMsg" style="margin-top:8px"></div>'+
+    '</div>'+
     '<div class="pins-panel" style="border:2px solid var(--gold-light)">'+
       '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">மாணவர் அடைவு (Dept 1) தரவை மீட்டெடு</div>'+
       '<p class="hint" style="margin:0 0 10px">பழைய பள்ளி ID <code>xlainu9fmul8a1f6</code> இல் உள்ள Dept 1 தரவை (படங்கள் உட்பட) St. Mary\'s பள்ளிக்குள் நகலெடுக்கும். மூலத் தரவை நீக்காது; St. Mary\'s இல் இப்போதுள்ளதையும் மாற்றாது — இல்லாதவற்றை மட்டும் சேர்க்கும்.</p>'+
@@ -1928,6 +1934,36 @@ function renderSuperAdmin(app){
     state.schools=null;
     auth.signOut();
   };
+  document.getElementById('btnBackupAll').onclick=function(){
+    var msgEl=document.getElementById('backupMsg'), btn=document.getElementById('btnBackupAll');
+    btn.disabled=true; msgEl.style.color=''; msgEl.textContent='தரவைச் சேகரிக்கிறது… (சில நிமிடம் ஆகலாம்)';
+    var out={exportedAt:new Date().toISOString(), by:state.user?state.user.email:'', schools:{}, legacy:{}, userSchoolMap:{}};
+    function dump(colRef){ return colRef.get().then(function(snap){ var o={}; snap.forEach(function(d){ o[d.id]=d.data(); }); return o; }).catch(function(){ return {_error:'unreadable'}; }); }
+    var ids = (state.schools||[]).map(function(x){ return x.id; });
+    ['xlainu9fmul8a1f6'].forEach(function(x){ if(ids.indexOf(x)<0) ids.push(x); });
+    ids.reduce(function(p,sid){
+      return p.then(function(){
+        var ref=db.collection('schools').doc(sid), rec={};
+        return ref.get().then(function(d){ rec.schoolDoc = d.exists ? d.data() : null; })
+          .then(function(){ return dump(ref.collection('departments')); }).then(function(x){ rec.departments=x; })
+          .then(function(){ return dump(ref.collection('photos')); }).then(function(x){ rec.photos=x; })
+          .then(function(){ return dump(ref.collection('users')); }).then(function(x){ rec.users=x; })
+          .then(function(){ return dump(ref.collection('lt_teachers')); }).then(function(x){ rec.lt_teachers=x; })
+          .then(function(){ return dump(ref.collection('lt_supervisions')); }).then(function(x){ rec.lt_supervisions=x; })
+          .then(function(){ out.schools[sid]=rec; });
+      });
+    }, Promise.resolve()).then(function(){ return dump(db.collection('departments')); }).then(function(x){ out.legacy.departments=x; })
+    .then(function(){ return dump(db.collection('userSchoolMap')); }).then(function(x){ out.userSchoolMap=x; })
+    .then(function(){
+      var blob=new Blob([JSON.stringify(out)],{type:'application/json'});
+      var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download='school-sqi-backup-'+new Date().toISOString().slice(0,10)+'.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      msgEl.style.color='var(--sage)'; msgEl.textContent='Backup கோப்பு பதிவிறக்கப்பட்டது ✓ ('+Math.round(blob.size/1024)+' KB). அதைப் பாதுகாப்பான இடத்தில் (Google Drive / USB) சேமித்து வையுங்கள்.';
+    }).catch(function(err){ msgEl.style.color=''; msgEl.textContent='Backup எடுக்க முடியவில்லை: '+(err.message||err); })
+    .then(function(){ btn.disabled=false; });
+  };
+
   document.getElementById('btnRestoreD1').onclick=function(){
     var SRC='xlainu9fmul8a1f6', DST='xfg2yl11mulcke79', DEPT='d1';
     var msgEl=document.getElementById('restoreD1Msg'), btn=document.getElementById('btnRestoreD1');
