@@ -2793,6 +2793,8 @@ function renderSchoolSetup(app){
         '</select></div>'+
         '<button type="button" class="btn-outline" id="btnRecoverDept">இந்தத் துறையின் பழைய தரவைக் கொண்டுவா</button>'+
         '<button type="button" class="btn-primary" id="btnMergeDept">பழைய தரவை இணை (இப்போதுள்ளதை நீக்காமல்)</button>'+
+        '<div class="field" style="min-width:210px"><label>வேறொரு பள்ளி ID இலிருந்து இணைக்க</label><input type="text" id="mergeSrcSchool" value="xlainu9fmul8a1f6"></div>'+
+        '<button type="button" class="btn-primary" id="btnMergeFromSchool">இந்தப் பள்ளி ID இலிருந்து இணை (இப்போதுள்ளதை நீக்காமல்)</button>'+
         '<button type="button" class="btn-outline" id="btnCheckDept">🔍 தரவு எங்குள்ளது எனச் சோதி</button>'+
       '</div>'+
       '<div class="error-msg" id="recoverMsg"></div>'+
@@ -2837,6 +2839,41 @@ function renderSchoolSetup(app){
     }).then(function(){
       box.innerHTML = '<table class="setup-table"><thead><tr><th>இடம்</th><th>% பெறுமதிகள்</th><th>புள்ளி இட்ட சுட்டிகள்</th><th>பதிவுகள்</th><th>குறிப்புகள்</th><th>படங்கள்</th></tr></thead><tbody>'+rows.join('')+'</tbody></table>';
     });
+  };
+
+  document.getElementById('btnMergeFromSchool').onclick=function(){
+    var deptId = document.getElementById('recoverDept').value;
+    var dept = deptById(deptId);
+    var srcId = (document.getElementById('mergeSrcSchool').value||'').trim();
+    var msgEl = document.getElementById('recoverMsg');
+    msgEl.style.color='';
+    if(!srcId || srcId===state.schoolId){ msgEl.textContent='வேறொரு பள்ளியின் ID ஐ இடவும்.'; return; }
+    msgEl.textContent='இணைக்கிறது…';
+    var srcPhotos = {};
+    Promise.all([
+      db.collection('schools').doc(srcId).collection('departments').doc(deptId).get(),
+      deptsColRef().doc(deptId).get(),
+      db.collection('schools').doc(srcId).collection('photos').where('deptId','==',deptId).get().catch(function(){ return {forEach:function(){}}; })
+    ]).then(function(r){
+      if(!r[0].exists) throw new Error('அந்தப் பள்ளியில் இந்தத் துறையின் தரவு எதுவும் இல்லை.');
+      r[2].forEach(function(doc){ var d=doc.data(); if(d && d.data) srcPhotos[doc.id]=d.data; });
+      var oldD = migrateDeptData(JSON.parse(JSON.stringify(r[0].data())), deptId);
+      forEachEntry(oldD, function(e){ if(e.hasPhoto && !e.imageData && srcPhotos[e.id]) e.imageData = srcPhotos[e.id]; });
+      if(deptId==='d1') splitDept1MergedCriterion(oldD);
+      var cur = r[1].exists ? migrateDeptData(r[1].data(), deptId) : buildEmptyDeptData(deptId);
+      if(deptId==='d1') splitDept1MergedCriterion(cur);
+      var res = mergeOldDeptInto(cur, oldD);
+      if(!res.total) throw new Error('"'+dept.name+'" — அந்தப் பள்ளியில், இப்போது இல்லாத தகவல் எதுவும் இல்லை. எதுவும் மாற்றப்படவில்லை.');
+      unsubscribeDept(deptId);
+      state.deptData[deptId] = cur;
+      hydratePhotos(deptId);
+      return doSaveDept(deptId).then(function(ok){
+        if(ok===false) throw new Error('இணைத்த தரவைச் சேமிக்க முடியவில்லை (மேலே உள்ள எச்சரிக்கையைப் பார்க்கவும்). எதுவும் மாற்றப்படவில்லை.');
+        unsubscribeDept(deptId); delete state.deptData[deptId];
+        msgEl.style.color='var(--sage)';
+        msgEl.textContent='"'+dept.name+'" — இணைக்கப்பட்டது ✓  பதிவுகள்: '+res.entries+', % பெறுமதிகள்: '+res.values+', புள்ளிகள்: '+res.scores+', பாடங்கள்: '+res.subjects+(res.unmatched?' (பொருந்தாத சுட்டிகள்: '+res.unmatched+')':'');
+      });
+    }).catch(function(err){ msgEl.style.color=''; msgEl.textContent = err.message; });
   };
 
   document.getElementById('btnMergeDept').onclick=function(){
