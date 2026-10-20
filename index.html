@@ -1105,8 +1105,15 @@ function computeSchoolStats(){
 
 var MAX_DEPT_DOC_CHARS = 850000; // leave headroom under Firestore's ~1,048,576 byte cap
 
+/* Photos now live in their own documents (photos/{entryId}), so they can be
+   sharper than before. The image is shrunk to fit the report (max 1000px
+   on the long side) and the JPEG quality is lowered step by step until the
+   result is under TARGET_PHOTO_CHARS (~330 KB) — always well below
+   Firestore's 1 MiB per-document limit, whatever the size of the original
+   file the user picks (phone photos of 5-10 MB are fine). */
+var TARGET_PHOTO_CHARS = 330000;
 function fileToCompressedDataUrl(file, maxDim, quality){
-  maxDim = maxDim || 480; quality = quality || 0.5;
+  maxDim = maxDim || 1000; quality = quality || 0.82;
   return new Promise(function(resolve, reject){
     var reader = new FileReader();
     reader.onerror = function(){ reject(new Error('read failed')); };
@@ -1114,16 +1121,23 @@ function fileToCompressedDataUrl(file, maxDim, quality){
       var img = new Image();
       img.onerror = function(){ reject(new Error('image failed')); };
       img.onload = function(){
-        var w=img.width, h=img.height;
-        if(w>maxDim || h>maxDim){
-          if(w>h){ h=Math.round(h*maxDim/w); w=maxDim; }
-          else { w=Math.round(w*maxDim/h); h=maxDim; }
+        var dim = maxDim, q = quality, out = '';
+        for(var attempt=0; attempt<12; attempt++){
+          var w=img.width, h=img.height;
+          if(w>dim || h>dim){
+            if(w>h){ h=Math.round(h*dim/w); w=dim; }
+            else { w=Math.round(w*dim/h); h=dim; }
+          }
+          var canvas=document.createElement('canvas');
+          canvas.width=w; canvas.height=h;
+          var ctx=canvas.getContext('2d');
+          ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+          ctx.drawImage(img,0,0,w,h);
+          out = canvas.toDataURL('image/jpeg', q);
+          if(out.length <= TARGET_PHOTO_CHARS) break;
+          if(q > 0.5) q -= 0.1; else { dim = Math.round(dim*0.85); }
         }
-        var canvas=document.createElement('canvas');
-        canvas.width=w; canvas.height=h;
-        var ctx=canvas.getContext('2d');
-        ctx.drawImage(img,0,0,w,h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        resolve(out);
       };
       img.src = e.target.result;
     };
