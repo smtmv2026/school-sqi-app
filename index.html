@@ -1851,6 +1851,12 @@ function renderSuperAdmin(app){
     '<div class="topbar-actions"><button class="btn-ghost" id="btnLogoutSA">← வெளியேறு</button></div></div>'+
     '<div class="dept-header"><h1>பள்ளிகள்</h1>'+
     '<p class="dept-sub">ஒவ்வொரு பள்ளியும் அதற்கே உரிய தனித்தனி தரவுத்தளத்தை (துறைகள், சான்றுகள், பயனர்கள்) கொண்டிருக்கும்.</p></div>'+
+    '<div class="pins-panel" style="border:2px solid var(--gold-light)">'+
+      '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">மாணவர் அடைவு (Dept 1) தரவை மீட்டெடு</div>'+
+      '<p class="hint" style="margin:0 0 10px">பழைய பள்ளி ID <code>xlainu9fmul8a1f6</code> இல் உள்ள Dept 1 தரவை (படங்கள் உட்பட) St. Mary\'s பள்ளிக்குள் நகலெடுக்கும். மூலத் தரவை நீக்காது; St. Mary\'s இல் இப்போதுள்ளதையும் மாற்றாது — இல்லாதவற்றை மட்டும் சேர்க்கும்.</p>'+
+      '<button type="button" class="btn-primary" id="btnRestoreD1">Dept 1 தரவை St. Mary\'s க்குள் இணை</button>'+
+      '<div class="error-msg" id="restoreD1Msg" style="margin-top:8px"></div>'+
+    '</div>'+
     '<div class="pins-panel">'+
       '<div class="dept-card-name" style="font-size:1rem;margin-bottom:4px">புதிய பள்ளியைச் சேர்</div>'+
       '<p class="hint" style="margin:0 0 12px">பள்ளியின் பெயரை இடவும். விரும்பினால், அப்பள்ளியின் முதல் நிர்வாகி (admin) உள்நுழையும் மின்னஞ்சல்/கடவுச்சொல்லையும் இங்கேயே உருவாக்கலாம் — அதைப் பின்னர் அப்பள்ளியின் "பள்ளி அமைப்பு" பக்கத்திலும் சேர்க்கலாம்.</p>'+
@@ -1922,6 +1928,36 @@ function renderSuperAdmin(app){
     state.schools=null;
     auth.signOut();
   };
+  document.getElementById('btnRestoreD1').onclick=function(){
+    var SRC='xlainu9fmul8a1f6', DST='xfg2yl11mulcke79', DEPT='d1';
+    var msgEl=document.getElementById('restoreD1Msg'), btn=document.getElementById('btnRestoreD1');
+    if(!confirm('Dept 1 தரவை '+SRC+' இலிருந்து St. Mary\'s (' + DST + ') க்குள் இணைக்கவா? (எதுவும் நீக்கப்படாது)')) return;
+    btn.disabled=true; msgEl.style.color=''; msgEl.textContent='இணைக்கிறது…';
+    var srcRef=db.collection('schools').doc(SRC), dstRef=db.collection('schools').doc(DST);
+    Promise.all([
+      srcRef.collection('departments').doc(DEPT).get(),
+      dstRef.collection('departments').doc(DEPT).get(),
+      srcRef.collection('photos').where('deptId','==',DEPT).get()
+    ]).then(function(r){
+      if(!r[0].exists) throw new Error('மூலத் தரவு கிடைக்கவில்லை.');
+      var oldD = migrateDeptData(JSON.parse(JSON.stringify(r[0].data())), DEPT);
+      splitDept1MergedCriterion(oldD);
+      var cur = r[1].exists ? migrateDeptData(JSON.parse(JSON.stringify(r[1].data())), DEPT) : buildEmptyDeptData(DEPT);
+      splitDept1MergedCriterion(cur);
+      var res = mergeOldDeptInto(cur, oldD);
+      if(!res.total) throw new Error('இணைக்க வேண்டிய புதிய தகவல் எதுவும் இல்லை (ஏற்கனவே இணைக்கப்பட்டிருக்கலாம்).');
+      var photoDocs=[]; r[2].forEach(function(d){ photoDocs.push(d); });
+      return Promise.all(photoDocs.map(function(d){ return dstRef.collection('photos').doc(d.id).set(d.data()); })).then(function(){
+        forEachEntry(cur, function(e){ if(e.imageData && !e.hasPhoto){ /* inline photo stays inline */ } });
+        return dstRef.collection('departments').doc(DEPT).set(JSON.parse(JSON.stringify(cur)));
+      }).then(function(){
+        msgEl.style.color='var(--sage)';
+        msgEl.textContent='இணைக்கப்பட்டது ✓  பதிவுகள்: '+res.entries+', % பெறுமதிகள்: '+res.values+', புள்ளிகள்: '+res.scores+', படங்கள்: '+photoDocs.length+'. இப்போது St. Mary\'s → "திற / திருத்து" மூலம் Dept 1 ஐப் பாருங்கள்.';
+      });
+    }).catch(function(err){ msgEl.style.color=''; msgEl.textContent='சேமிக்க முடியவில்லை — எதுவும் மாற்றப்படவில்லை: '+(err.message||err); })
+    .then(function(){ btn.disabled=false; });
+  };
+
   document.getElementById('btnCreateSchool').onclick=function(){
     var nameEl = document.getElementById('newSchoolName');
     var name = nameEl.value.trim();
