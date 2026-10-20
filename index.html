@@ -1463,7 +1463,14 @@ function routeAfterAuth(){
   if(isSuperAdminEmail(state.user.email)){
     state.isSuperAdmin = true;
     state.showWelcomeGate = true;
-    enterSchoolAsSuperAdmin(SUPERADMIN_HOME_SCHOOL_ID);
+    /* Only open the fixed "home" school if it really exists. Otherwise (e.g.
+       the real school has a different ID) the superadmin used to land in an
+       empty phantom school and think all the data was gone — so go to the
+       schools list instead. */
+    schoolDocRef(SUPERADMIN_HOME_SCHOOL_ID).get().then(function(sDoc){
+      if(sDoc.exists){ enterSchoolAsSuperAdmin(SUPERADMIN_HOME_SCHOOL_ID); }
+      else { leaveSchoolContext(); state.view='superadmin'; renderApp(); }
+    }).catch(function(){ leaveSchoolContext(); state.view='superadmin'; renderApp(); });
     return;
   }
 
